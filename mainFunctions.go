@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -15,16 +14,28 @@ func init() {
 	conf = getConf()
 }
 
-// File info
-type File struct {
-	id                 uint   `gorm:"primaryKey;autoIncrement:false"` // crc32(fullpath)
-	FullPath           string // /home/ubuntu/Music/donk.mp3
-	FileName           string // donk.mp3
-	ExtensionLowerCase string `gorm:"index"` // mp3
-	Crc32              uint   `gorm:"index"` // 321789321
-	Crc32WithoutTags   uint   `gorm:"index"` // 128291009
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+// Iterate through files in directory
+func listFiles(db *gorm.DB) ([]string, error) {
+	fileList := make([]string, 0)
+	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
+		// Don't process directories
+		if !f.IsDir() {
+			rowError := createFileRow(db, path)
+
+			if rowError != nil {
+				panic(rowError)
+			}
+		}
+
+		fmt.Println(path)
+		return err
+	})
+
+	if e != nil {
+		panic(e)
+	}
+
+	return fileList, nil
 }
 
 /**
@@ -99,18 +110,3 @@ type File struct {
       1 mkv
       1 mid
 **/
-
-// Iterate through files in directory
-func listFiles(*gorm.DB) ([]string, error) {
-	fileList := make([]string, 0)
-	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
-		fmt.Println(path)
-		return err
-	})
-
-	if e != nil {
-		panic(e)
-	}
-
-	return fileList, nil
-}
