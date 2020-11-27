@@ -8,6 +8,7 @@ import (
 
 // Create private data struct to hold config options.
 type config struct {
+	MysqlDatabase   string `yaml:"MysqlDatabase"`
 	MysqlHost       string `yaml:"mysqlHost"`
 	MysqlUser       string `yaml:"mysqlUser"`
 	MysqlPass       string `yaml:"mysqlPass"`
