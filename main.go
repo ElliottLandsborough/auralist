@@ -1,5 +1,16 @@
 package main
 
 func main() {
-	listFiles()
+	// check db is ready
+	db, e := getDB()
+
+	if e != nil {
+		panic(e)
+	}
+
+	// migrate
+	db.AutoMigrate(&File{})
+
+	// iterate through files
+	listFiles(db)
 }
