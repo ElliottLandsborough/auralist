@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -18,12 +17,12 @@ func init() {
 
 // File info
 type File struct {
-	ID                 uint
-	FullPath           string
-	FileName           string
-	ExtensionLowerCase string `gorm:"index"`
-	Crc32              uint   `gorm:"index"`
-	Crc32WithoutTags   uint   `gorm:"index"`
+	id                 uint   `gorm:"primaryKey;autoIncrement:false"` // crc32(fullpath)
+	FullPath           string // /home/ubuntu/Music/donk.mp3
+	FileName           string // donk.mp3
+	ExtensionLowerCase string `gorm:"index"` // mp3
+	Crc32              uint   `gorm:"index"` // 321789321
+	Crc32WithoutTags   uint   `gorm:"index"` // 128291009
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
@@ -101,6 +100,7 @@ type File struct {
       1 mid
 **/
 
+// Iterate through files in directory
 func listFiles(*gorm.DB) ([]string, error) {
 	fileList := make([]string, 0)
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
@@ -113,11 +113,4 @@ func listFiles(*gorm.DB) ([]string, error) {
 	}
 
 	return fileList, nil
-}
-
-func getDB() (*gorm.DB, error) {
-	dsn := "root:password@tcp(127.0.0.1:3306)/auralist?charset=utf8&parseTime=True&loc=Local"
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-
-	return db, err
 }
