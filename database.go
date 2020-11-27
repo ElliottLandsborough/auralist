@@ -13,6 +13,7 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/vcaesar/murmur"
 )
@@ -67,7 +68,7 @@ func createFileRow(db *gorm.DB, path string) error {
 		return err
 	}
 
-	file := File{
+	FileInfo := File{
 		FullPathHash:       generateFullPathHash(path),
 		FullPath:           path,
 		FileName:           filepath.Base(path),
@@ -75,13 +76,24 @@ func createFileRow(db *gorm.DB, path string) error {
 		ExtensionLowerCase: strings.ToLower(filepath.Ext(path)),
 		Crc32:              Crc32}
 
-	db.Select(
+	// Only insert when FullPathHash doesn't exist, otherwise update
+	db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "FullPathHash"}},
+		// TODO: why doesnt this work?
+		DoUpdates: clause.AssignmentColumns([]string{
+			"full_path",
+			"file_name",
+			"file_size_bytes",
+			"extension_lower_case",
+			"crc32"}),
+	}).Select(
+		// specify which fielsa to update, update based on contents of 'file'
 		"FullPathHash",
 		"FullPath",
 		"FileName",
 		"FileSizeBytes",
 		"ExtensionLowerCase",
-		"Crc32").Create(&file)
+		"Crc32").Create(&FileInfo)
 
 	return nil
 }
