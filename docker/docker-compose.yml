@@ -1,8 +1,16 @@
 version: "3.8"
 
 services:
-  sushi:
-    build: .
-    container_name: auralist
+  sqldb:
+    image: mariadb
+    container_name: sqldb
     volumes:
       - ./:/code
+    ports:
+      - "33666:3306"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
