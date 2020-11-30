@@ -26,9 +26,17 @@ type File struct {
 	FileSizeBytes      int64  // file size in bytes (maximum 4294967295, 4gb!)
 	ExtensionLowerCase string `gorm:"index"` // mp3
 	Crc32              int64  `gorm:"index"` // 321789321
-	Crc32WithoutTags   uint   `gorm:"index"` // 128291004
+	Crc32WithoutTags   uint   `gorm:"index"` // 128291004 TODO
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
+}
+
+// ID3Tag tags
+type ID3Tag struct {
+	ID        uint
+	FileID    uint `gorm:"index"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // Gets db connection info
@@ -77,7 +85,7 @@ func createFileRow(db *gorm.DB, path string) error {
 
 	// Only insert when FullPathHash doesn't exist, otherwise update
 	db.Select(
-		// specify which fielsa to update, update based on contents of 'file'
+		// specify which fields to update, update based on contents of 'file'
 		"FullPathHash",
 		"FullPath",
 		"FileName",

@@ -4,6 +4,12 @@ build:
 run:
 	go run *.go
 
+index:
+	go run *.go index
+
+parsemp3:
+	go run *.go parse:mp3
+
 deps:
 	go get ./...
 
