@@ -8,6 +8,8 @@ func main() {
 		panic(e)
 	}
 
+	deleteAllFiles(db)
+
 	// migrate
 	db.AutoMigrate(&File{})
 
