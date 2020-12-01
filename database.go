@@ -9,35 +9,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
 	"github.com/vcaesar/murmur"
 )
-
-// File info
-type File struct {
-	ID                 uint
-	FullPathHash       uint32 `gorm:"index"` // murmur3(FullPath)
-	FullPath           string // /home/ubuntu/Music/donk.mp3
-	FileName           string // donk.mp3
-	FileSizeBytes      int64  // file size in bytes (maximum 4294967295, 4gb!)
-	ExtensionLowerCase string `gorm:"index"` // mp3
-	Crc32              int64  `gorm:"index"` // 321789321
-	Crc32WithoutTags   uint   `gorm:"index"` // 128291004 TODO
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-}
-
-// ID3Tag tags
-type ID3Tag struct {
-	ID        uint
-	FileID    uint `gorm:"index"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
 
 // Gets db connection info
 func getDSN() string {
@@ -84,14 +61,7 @@ func createFileRow(db *gorm.DB, path string) error {
 		Crc32:              Crc32}
 
 	// Only insert when FullPathHash doesn't exist, otherwise update
-	db.Select(
-		// specify which fields to update, update based on contents of 'file'
-		"FullPathHash",
-		"FullPath",
-		"FileName",
-		"FileSizeBytes",
-		"ExtensionLowerCase",
-		"Crc32").Create(&FileRow)
+	db.Create(&FileRow)
 
 	return nil
 }

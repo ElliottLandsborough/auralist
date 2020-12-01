@@ -54,4 +54,16 @@ func parseMp3() {
 	// migrate
 	db.AutoMigrate(&ID3Tag{})
 
+	var file File
+
+	rows, e := db.Model(&File{}).Rows()
+
+	if e != nil {
+		panic(e)
+	}
+
+	for rows.Next() {
+		db.ScanRows(rows, &file)
+		parseID3TagsToDb(file, db)
+	}
 }
