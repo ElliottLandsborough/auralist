@@ -14,20 +14,36 @@ func init() {
 	conf = getConf()
 }
 
+// Does a string exist in a slices
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 // Iterate through files in directory
 func listFiles(db *gorm.DB) ([]string, error) {
 	fileList := make([]string, 0)
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
 		// Don't process directories
 		if !f.IsDir() {
-			rowError := createFileRow(db, path)
+			allowedExtentions := []string{".mp3", ".flac"}
 
-			if rowError != nil {
-				panic(rowError)
+			// is the extension allowed?
+			if stringInSlice(filepath.Ext(path), allowedExtentions) {
+				rowError := createFileRow(db, path)
+
+				fmt.Println(path)
+
+				if rowError != nil {
+					panic(rowError)
+				}
 			}
 		}
 
-		fmt.Println(path)
 		return err
 	})
 
