@@ -30,7 +30,7 @@ func listFiles(db *gorm.DB) ([]string, error) {
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
 		// Don't process directories
 		if !f.IsDir() {
-			allowedExtentions := []string{".mp3", ".flac"}
+			allowedExtentions := []string{".mp3", ".flac", ".ogg"}
 
 			// is the extension allowed?
 			if stringInSlice(filepath.Ext(path), allowedExtentions) {

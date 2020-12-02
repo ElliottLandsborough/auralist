@@ -16,8 +16,8 @@ type File struct {
 	UpdatedAt          time.Time
 }
 
-// ID3Tag parsed from mp3
-type ID3Tag struct {
+// Tag parsed from mp3
+type Tag struct {
 	ID        uint
 	FileID    uint `gorm:"index"`
 	Title     string
@@ -25,7 +25,7 @@ type ID3Tag struct {
 	Album     string
 	Year      string
 	Genre     string
-	Comments  string
+	Sum       string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

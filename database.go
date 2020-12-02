@@ -70,6 +70,10 @@ func deleteAllFiles(db *gorm.DB) {
 	db.Where("true").Delete(&File{})
 }
 
+func deleteAllTags(db *gorm.DB) {
+	db.Where("true").Delete(&Tag{})
+}
+
 // Gets a files size in bytes
 func getFileSizeInBytes(path string) (int64, error) {
 	fi, err := os.Stat(path)

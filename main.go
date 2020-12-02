@@ -15,8 +15,8 @@ func main() {
 		switch arg {
 		case "index":
 			indexAllFiles()
-		case "parse:mp3":
-			parseMp3()
+		case "parsetags":
+			parseTags()
 		default:
 			fmt.Printf("Please choose a command.")
 		}
@@ -37,13 +37,12 @@ func indexAllFiles() {
 
 	// migrate
 	db.AutoMigrate(&File{})
-	db.AutoMigrate(&ID3Tag{})
 
 	// iterate through files
 	listFiles(db)
 }
 
-func parseMp3() {
+func parseTags() {
 	// check db is ready
 	db, e := getDB()
 
@@ -51,8 +50,11 @@ func parseMp3() {
 		panic(e)
 	}
 
+	deleteAllTags(db)
+
 	// migrate
-	db.AutoMigrate(&ID3Tag{})
+	db.AutoMigrate(&File{})
+	db.AutoMigrate(&Tag{})
 
 	var file File
 
@@ -64,6 +66,6 @@ func parseMp3() {
 
 	for rows.Next() {
 		db.ScanRows(rows, &file)
-		parseID3TagsToDb(file, db)
+		parseTagsToDb(file, db)
 	}
 }

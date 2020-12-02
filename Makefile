@@ -4,11 +4,13 @@ build:
 run:
 	go run *.go
 
-index:
+index: files tags
+
+files:
 	go run *.go index
 
-parsemp3:
-	go run *.go parse:mp3
+tags:
+	go run *.go parsetags
 
 deps:
 	go get ./...
