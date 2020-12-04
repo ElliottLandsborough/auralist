@@ -37,5 +37,19 @@ func getConf() *config {
 		fmt.Printf("unable to decode into config struct, %v", err)
 	}
 
+	sd := conf.SearchDirectory
+
+	if len(sd) == 0 {
+		panic("Please set a `searchDirectory` in config.yml")
+	}
+
+	// if a dir was set
+	if len(sd) > 0 {
+		// if it doesn't end in slash
+		if sd[len(sd)-1:] != "/" {
+			conf.SearchDirectory = conf.SearchDirectory + "/"
+		}
+	}
+
 	return conf
 }
