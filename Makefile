@@ -4,8 +4,6 @@ build:
 run:
 	go run *.go
 
-index: files tags
-
 files:
 	go run *.go index
 
