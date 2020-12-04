@@ -9,6 +9,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// Initialization routine.
+func init() {
+	// Retrieve config options.
+	conf = getConf()
+}
+
 // Gets db connection info
 func getDSN() string {
 	MysqlDatabase := conf.MysqlDatabase
