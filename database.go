@@ -1,19 +1,12 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
-	"hash/crc32"
-	"io"
-	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-
-	"github.com/vcaesar/murmur"
 )
 
 // Gets db connection info
@@ -53,7 +46,7 @@ func createFileRow(db *gorm.DB, path string) error {
 	}
 
 	FileRow := File{
-		FullPathHash:       generateFullPathHash(path),
+		FullPathHash:       stringToMurmur(path),
 		FullPath:           path,
 		FileName:           filepath.Base(path),
 		FileSizeBytes:      FileSizeBytes,
@@ -72,45 +65,4 @@ func deleteAllFiles(db *gorm.DB) {
 
 func deleteAllTags(db *gorm.DB) {
 	db.Where("true").Delete(&Tag{})
-}
-
-// Gets a files size in bytes
-func getFileSizeInBytes(path string) (int64, error) {
-	fi, err := os.Stat(path)
-
-	if err != nil {
-		return -1, err
-	}
-
-	// get the size
-	size := fi.Size()
-
-	return size, nil
-}
-
-// Generate a hash of the path
-func generateFullPathHash(path string) uint32 {
-	return murmur.Murmur3([]byte(path))
-}
-
-// Get crc32 hash as an integer
-func hashFileCrc32(filePath string) (int64, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return -1, err
-	}
-	defer file.Close()
-	hash := crc32.NewIEEE()
-	if _, err := io.Copy(hash, file); err != nil {
-		return -1, err
-	}
-	hashInBytes := hash.Sum(nil)[:]
-	CRC32String := hex.EncodeToString(hashInBytes)
-	CRC32Int, err := strconv.ParseInt(CRC32String, 16, 64)
-
-	if _, err := io.Copy(hash, file); err != nil {
-		return -1, err
-	}
-
-	return CRC32Int, nil
 }

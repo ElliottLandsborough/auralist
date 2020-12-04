@@ -12,6 +12,7 @@ type File struct {
 	ExtensionLowerCase string `gorm:"index"` // mp3
 	Crc32              int64  `gorm:"index"` // 321789321
 	Crc32WithoutTags   uint   `gorm:"index"` // 128291004 TODO
+	Md5                string `gorm:"index;size:32"`
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
