@@ -12,6 +12,7 @@ type File struct {
 	ExtensionLowerCase string `gorm:"index"` // mp3
 	Crc32              int64  `gorm:"index"` // 321789321
 	Md5                string `gorm:"index;size:32"`
+	HostName           string `gorm:"index;size:256"` // max linux hostname size as per manpage
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }

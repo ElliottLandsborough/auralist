@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -57,6 +58,12 @@ func createFileRow(db *gorm.DB, path string) error {
 		return err
 	}
 
+	HostName, err := os.Hostname()
+
+	if err != nil {
+		panic(err)
+	}
+
 	FileRow := File{
 		FullPathHash:       stringToMurmur(path),
 		FullPath:           path,
@@ -64,7 +71,8 @@ func createFileRow(db *gorm.DB, path string) error {
 		FileSizeBytes:      FileSizeBytes,
 		ExtensionLowerCase: strings.ToLower(filepath.Ext(path)),
 		Crc32:              Crc32,
-		Md5:                Md5}
+		Md5:                Md5,
+		HostName:           HostName}
 
 	// Only insert when FullPathHash doesn't exist, otherwise update
 	db.Create(&FileRow)
