@@ -7,6 +7,7 @@ type File struct {
 	ID                 uint
 	FileName           string // donk.mp3
 	Path               string // /home/ubuntu/Music/donk.mp3
+	Base               string
 	PathHash           uint32 `gorm:"index"` // murmur3(Path)
 	FileSizeBytes      int64  // file size in bytes (maximum 4294967295, 4gb!)
 	ExtensionLowerCase string `gorm:"index"` // mp3

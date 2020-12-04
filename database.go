@@ -66,8 +66,9 @@ func createFileRow(db *gorm.DB, path string) error {
 
 	FileRow := File{
 		PathHash:           stringToMurmur(path),
-		Path:               strings.ReplaceAll(path, conf.SearchDirectory, ""),
 		FileName:           filepath.Base(path),
+		Path:               strings.ReplaceAll(path, conf.SearchDirectory, ""),
+		Base:               conf.SearchDirectory,
 		FileSizeBytes:      FileSizeBytes,
 		ExtensionLowerCase: trimLeftChars(strings.ToLower(filepath.Ext(path)), 1),
 		Crc32:              Crc32,
