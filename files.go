@@ -11,20 +11,24 @@ import (
 // Iterate through files in directory
 func listFiles(db *gorm.DB) ([]string, error) {
 	fileList := make([]string, 0)
+	fileQueueFlushLimit := 64
+	fileQueue := make([]File, 0)
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
 		// Don't process directories
 		if !f.IsDir() {
-			allowedExtentions := []string{".mp3", ".flac", ".ogg"}
+			fmt.Println(path)
 
-			// is the extension allowed?
-			if stringInSlice(filepath.Ext(path), allowedExtentions) {
-				rowError := createFileRow(db, path)
+			file, err := createFile(path)
 
-				fmt.Println(path)
+			if err != nil {
+				panic(err)
+			}
 
-				if rowError != nil {
-					panic(rowError)
-				}
+			fileQueue = append(fileQueue, file)
+
+			if len(fileQueue) == fileQueueFlushLimit {
+				flushFileQueue(fileQueue, db)
+				fileQueue = make([]File, 0)
 			}
 		}
 
@@ -36,6 +40,21 @@ func listFiles(db *gorm.DB) ([]string, error) {
 	}
 
 	return fileList, nil
+}
+
+func flushFileQueue(files []File, db *gorm.DB) {
+	for _, file := range files {
+		//allowedExtentions := []string{".mp3", ".flac", ".ogg"}
+		// is the extension allowed?
+		//if stringInSlice(filepath.Ext(path), allowedExtentions) {
+
+		rowError := createFileRow(db, file)
+
+		if rowError != nil {
+			panic(rowError)
+		}
+	}
+
 }
 
 // Gets a files size in bytes

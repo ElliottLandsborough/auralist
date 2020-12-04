@@ -10,9 +10,8 @@ type File struct {
 	Base               string
 	PathHash           uint32 `gorm:"index"` // murmur3(Path)
 	FileSizeBytes      int64  // file size in bytes (maximum 4294967295, 4gb!)
-	ExtensionLowerCase string `gorm:"index"` // mp3
-	Crc32              int64  `gorm:"index"` // 321789321
-	Md5                string `gorm:"index;size:32"`
+	ExtensionLowerCase string `gorm:"index"`          // mp3
+	Crc32              int64  `gorm:"index"`          // 321789321
 	HostName           string `gorm:"index;size:256"` // max linux hostname size as per manpage
 	CreatedAt          time.Time
 	UpdatedAt          time.Time

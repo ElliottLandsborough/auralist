@@ -38,24 +38,17 @@ func getDB() (*gorm.DB, error) {
 	return db, err
 }
 
-// Create file row
-func createFileRow(db *gorm.DB, path string) error {
+func createFile(path string) (File, error) {
 	FileSizeBytes, err := getFileSizeInBytes(path)
 
 	if err != nil {
-		return err
+		return File{}, err
 	}
 
 	Crc32, err := hashFileCrc32(path)
 
 	if err != nil {
-		return err
-	}
-
-	Md5, err := hashFileMd5(path)
-
-	if err != nil {
-		return err
+		return File{}, err
 	}
 
 	HostName, err := os.Hostname()
@@ -64,7 +57,7 @@ func createFileRow(db *gorm.DB, path string) error {
 		panic(err)
 	}
 
-	FileRow := File{
+	file := File{
 		PathHash:           stringToMurmur(path),
 		FileName:           filepath.Base(path),
 		Path:               strings.ReplaceAll(path, conf.SearchDirectory, ""),
@@ -72,11 +65,16 @@ func createFileRow(db *gorm.DB, path string) error {
 		FileSizeBytes:      FileSizeBytes,
 		ExtensionLowerCase: trimLeftChars(strings.ToLower(filepath.Ext(path)), 1),
 		Crc32:              Crc32,
-		Md5:                Md5,
 		HostName:           HostName}
 
+	return file, nil
+
+}
+
+// Create file row
+func createFileRow(db *gorm.DB, file File) error {
 	// Only insert when PathHash doesn't exist, otherwise update
-	db.Create(&FileRow)
+	db.Create(&file)
 
 	return nil
 }
