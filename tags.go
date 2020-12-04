@@ -10,7 +10,7 @@ import (
 )
 
 func parseTagsToDb(file File, db *gorm.DB) {
-	f, err := os.Open(file.FullPath)
+	f, err := os.Open(file.Path)
 
 	if err != nil {
 		panic(err)

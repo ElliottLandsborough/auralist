@@ -65,16 +65,16 @@ func createFileRow(db *gorm.DB, path string) error {
 	}
 
 	FileRow := File{
-		FullPathHash:       stringToMurmur(path),
-		FullPath:           path,
+		PathHash:           stringToMurmur(path),
+		Path:               strings.ReplaceAll(path, conf.SearchDirectory, ""),
 		FileName:           filepath.Base(path),
 		FileSizeBytes:      FileSizeBytes,
-		ExtensionLowerCase: strings.ToLower(filepath.Ext(path)),
+		ExtensionLowerCase: trimLeftChars(strings.ToLower(filepath.Ext(path)), 1),
 		Crc32:              Crc32,
 		Md5:                Md5,
 		HostName:           HostName}
 
-	// Only insert when FullPathHash doesn't exist, otherwise update
+	// Only insert when PathHash doesn't exist, otherwise update
 	db.Create(&FileRow)
 
 	return nil
