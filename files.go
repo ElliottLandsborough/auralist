@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"gorm.io/gorm"
 )
@@ -12,15 +13,14 @@ import (
 // Iterate through files in directory
 func indexFiles(db *gorm.DB) error {
 	paths := make([]string, 0)
-	files := make([]File, 0)
-	queueSize := 2
+	queueSize := 64
 
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
 		// Don't process directories
 		if !f.IsDir() {
 			fmt.Println(path)
 
-			paths, err = handlePaths(path, paths, files, queueSize, db)
+			paths, err = handlePaths(path, paths, queueSize, db)
 
 			if err != nil {
 				panic(err)
@@ -37,31 +37,47 @@ func indexFiles(db *gorm.DB) error {
 	return nil
 }
 
-func handlePaths(path string, paths []string, files []File, queueSize int, db *gorm.DB) ([]string, error) {
+func handlePaths(path string, paths []string, queueSize int, db *gorm.DB) ([]string, error) {
 	paths = append(paths, path)
 
 	if len(paths) > queueSize {
-		files = append(files, processFiles(paths)...)
+		files := processFilesAsync(paths)
 		createFileRows(db, files)
-		files = nil
 		paths = nil
 	}
 
 	return paths, nil
 }
 
-func processFiles(paths []string) []File {
+func processFilesAsync(paths []string) []File {
+	pathsLength := len(paths)
 	files := make([]File, 0)
 
-	for _, path := range paths {
-		file, err := createFile(path)
+	// Initialize wait group
+	var wg sync.WaitGroup
 
-		if err != nil {
-			panic(err)
-		}
+	// How many items do we want to process concurrently
+	wg.Add(pathsLength)
 
-		files = append(files, file)
+	// Each path...
+	for i := 0; i < pathsLength; i++ {
+		// Spawn thread
+		go func(i int) {
+			// When this thread finishes let the waitgroup know
+			defer wg.Done()
+
+			file, err := createFile(paths[i])
+
+			if err != nil {
+				panic(err)
+			}
+
+			files = append(files, file)
+		}(i)
 	}
+
+	// Wait until processing has finished
+	wg.Wait()
 
 	return files
 }
