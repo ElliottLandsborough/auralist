@@ -3,11 +3,13 @@ package main
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"hash/crc32"
 	"io"
 	"os"
 	"strconv"
 
+	"github.com/kalafut/imohash"
 	"github.com/vcaesar/murmur"
 )
 
@@ -31,6 +33,19 @@ func hashFileCrc32(filePath string) (int64, error) {
 	}
 
 	return CRC32Int, nil
+}
+
+// Get imo hash of file
+func hashFileImo(filePath string) (string, error) {
+	hash, err := imohash.SumFile(filePath)
+
+	if err != nil {
+		return "", err
+	}
+
+	hashStr := fmt.Sprintf("%x", hash)
+
+	return hashStr, nil
 }
 
 // hashFileMd5 https://mrwaggel.be/post/generate-md5-hash-of-a-file-in-golang/
