@@ -4,31 +4,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gorm.io/gorm"
 )
 
 // Iterate through files in directory
-func listFiles(db *gorm.DB) ([]string, error) {
-	fileList := make([]string, 0)
-	fileQueueFlushLimit := 1
-	fileQueue := make([]File, 0)
+func indexFiles(db *gorm.DB) error {
+	paths := make([]string, 0)
+	files := make([]File, 0)
+	queueSize := 2
+
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
 		// Don't process directories
 		if !f.IsDir() {
 			fmt.Println(path)
 
-			file, err := createFile(path)
+			paths, err = handlePaths(path, paths, files, queueSize, db)
 
 			if err != nil {
 				panic(err)
-			}
-
-			fileQueue = append(fileQueue, file)
-
-			if len(fileQueue) == fileQueueFlushLimit {
-				flushFileQueue(fileQueue, db)
-				fileQueue = make([]File, 0)
 			}
 		}
 
@@ -39,22 +34,36 @@ func listFiles(db *gorm.DB) ([]string, error) {
 		panic(e)
 	}
 
-	return fileList, nil
+	return nil
 }
 
-func flushFileQueue(files []File, db *gorm.DB) {
-	for _, file := range files {
-		//allowedExtentions := []string{".mp3", ".flac", ".ogg"}
-		// is the extension allowed?
-		//if stringInSlice(filepath.Ext(path), allowedExtentions) {
+func handlePaths(path string, paths []string, files []File, queueSize int, db *gorm.DB) ([]string, error) {
+	paths = append(paths, path)
 
-		rowError := createFileRow(db, file)
-
-		if rowError != nil {
-			panic(rowError)
-		}
+	if len(paths) > queueSize {
+		files = append(files, processFiles(paths)...)
+		createFileRows(db, files)
+		files = nil
+		paths = nil
 	}
 
+	return paths, nil
+}
+
+func processFiles(paths []string) []File {
+	files := make([]File, 0)
+
+	for _, path := range paths {
+		file, err := createFile(path)
+
+		if err != nil {
+			panic(err)
+		}
+
+		files = append(files, file)
+	}
+
+	return files
 }
 
 // Gets a files size in bytes
@@ -69,4 +78,37 @@ func getFileSizeInBytes(path string) (int64, error) {
 	size := fi.Size()
 
 	return size, nil
+}
+
+func createFile(path string) (File, error) {
+	FileSizeBytes, err := getFileSizeInBytes(path)
+
+	if err != nil {
+		return File{}, err
+	}
+
+	Crc32, err := hashFileCrc32(path)
+
+	if err != nil {
+		return File{}, err
+	}
+
+	HostName, err := os.Hostname()
+
+	if err != nil {
+		panic(err)
+	}
+
+	file := File{
+		PathHash:           stringToMurmur(path),
+		FileName:           filepath.Base(path),
+		Path:               strings.ReplaceAll(path, conf.SearchDirectory, ""),
+		Base:               conf.SearchDirectory,
+		FileSizeBytes:      FileSizeBytes,
+		ExtensionLowerCase: trimLeftChars(strings.ToLower(filepath.Ext(path)), 1),
+		Crc32:              Crc32,
+		HostName:           HostName}
+
+	return file, nil
+
 }

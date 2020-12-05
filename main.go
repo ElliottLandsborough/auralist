@@ -39,7 +39,7 @@ func indexAllFiles() {
 	db.AutoMigrate(&File{})
 
 	// iterate through files
-	listFiles(db)
+	indexFiles(db)
 }
 
 func parseTags() {

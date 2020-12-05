@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -38,43 +35,18 @@ func getDB() (*gorm.DB, error) {
 	return db, err
 }
 
-func createFile(path string) (File, error) {
-	FileSizeBytes, err := getFileSizeInBytes(path)
-
-	if err != nil {
-		return File{}, err
-	}
-
-	Crc32, err := hashFileCrc32(path)
-
-	if err != nil {
-		return File{}, err
-	}
-
-	HostName, err := os.Hostname()
-
-	if err != nil {
-		panic(err)
-	}
-
-	file := File{
-		PathHash:           stringToMurmur(path),
-		FileName:           filepath.Base(path),
-		Path:               strings.ReplaceAll(path, conf.SearchDirectory, ""),
-		Base:               conf.SearchDirectory,
-		FileSizeBytes:      FileSizeBytes,
-		ExtensionLowerCase: trimLeftChars(strings.ToLower(filepath.Ext(path)), 1),
-		Crc32:              Crc32,
-		HostName:           HostName}
-
-	return file, nil
-
-}
-
 // Create file row
 func createFileRow(db *gorm.DB, file File) error {
 	// Only insert when PathHash doesn't exist, otherwise update
 	db.Create(&file)
+
+	return nil
+}
+
+// Create file rows
+func createFileRows(db *gorm.DB, files []File) error {
+	// Only insert when PathHash doesn't exist, otherwise update
+	db.Create(&files)
 
 	return nil
 }
