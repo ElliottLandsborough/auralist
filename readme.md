@@ -3,7 +3,7 @@
 ## Download
 
 ```bash
-go get -v github.com/ElliottLandsborough/auralist
+go get -u -v github.com/ElliottLandsborough/auralist
 ```
 
 ## Config
