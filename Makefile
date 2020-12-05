@@ -4,10 +4,13 @@ build:
 run:
 	go run *.go
 
-files:
-	go run *.go index
+collect:
+	go run *.go collectPaths
 
-tags:
+process:
+	go run *.go processPaths
+
+tag:
 	go run *.go parsetags
 
 deps:

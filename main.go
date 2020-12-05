@@ -6,26 +6,32 @@ import (
 )
 
 func main() {
-	output := "auralist"
+	fmt.Printf("Starting...\n")
 
 	if len(os.Args[1:]) > 0 {
 
 		arg := os.Args[1]
 
 		switch arg {
-		case "index":
-			indexAllFiles()
+		case "collectPaths":
+			collectPaths()
+		case "processPaths":
+			processPaths()
 		case "parsetags":
 			parseTags()
 		default:
-			fmt.Printf("Please choose a command.")
+			fmt.Printf("Please choose a command.\n")
 		}
 	}
 
-	fmt.Printf(output)
+	fmt.Printf("Finished.\n")
 }
 
-func indexAllFiles() {
+func collectPaths() {
+	readPaths()
+}
+
+func processPaths() {
 	// check db is ready
 	db, e := getDB()
 
@@ -38,8 +44,19 @@ func indexAllFiles() {
 	// migrate
 	db.AutoMigrate(&File{})
 
+	/*
+		// Iterate through files in directory
+		func indexFiles(db *gorm.DB) error {
+
+			paths := collectPaths()
+
+			handlePaths(paths, db)
+
+			return nil
+		}
+	*/
 	// iterate through files
-	indexFiles(db)
+	//indexFiles(db)
 }
 
 func parseTags() {

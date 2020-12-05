@@ -27,42 +27,10 @@ type File struct {
 	UpdatedAt          time.Time
 }
 
-// PathInfo contains a full path and other basic info
-type PathInfo struct {
-	Path string // /home/ubuntu/Music/donk.mp3
-	Size int64  // file size in bytes (maximum 4294967295, 4gb!)
-}
-
-// Iterate through files in directory
-func indexFiles(db *gorm.DB) error {
-	paths := make([]string, 0)
-
-	fmt.Println("Collecting paths...")
-
-	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
-		// Don't process directories
-		if !f.IsDir() {
-			paths = append(paths, path)
-		}
-
-		return err
-	})
-
-	if e != nil {
-		panic(e)
-	}
-
-	fmt.Printf("Found %d files.\n", len(paths))
-
-	handlePaths(paths, db)
-
-	return nil
-}
-
 // Handles paths inputted into it. Rudimentary queue system
 func handlePaths(paths []string, db *gorm.DB) error {
 	// Queue size = double the cpu count
-	queueLength := runtime.NumCPU() * 2
+	queueLength := runtime.NumCPU() * 4
 	// Limit queue to a file size also
 	var fileSizeLimit int64 = 500000000
 	// Initialize combined size
