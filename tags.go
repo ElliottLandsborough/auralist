@@ -4,10 +4,25 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	tag "github.com/dhowden/tag"
 	"gorm.io/gorm"
 )
+
+// Tag parsed from mp3
+type Tag struct {
+	ID        uint
+	FileID    uint `gorm:"index"`
+	Title     string
+	Artist    string
+	Album     string
+	Year      string
+	Genre     string
+	Sum       string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
 
 func parseTagsToDb(file File, db *gorm.DB) {
 	f, err := os.Open(file.Path)

@@ -7,9 +7,25 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"gorm.io/gorm"
 )
+
+// File with music in it
+type File struct {
+	ID                 uint
+	FileName           string // donk.mp3
+	Path               string // /home/ubuntu/Music/donk.mp3
+	Base               string
+	PathHash           uint32 `gorm:"index"` // murmur3(Path)
+	FileSizeBytes      int64  // file size in bytes (maximum 4294967295, 4gb!)
+	ExtensionLowerCase string `gorm:"index"`          // mp3
+	Crc32              int64  `gorm:"index"`          // 321789321
+	HostName           string `gorm:"index;size:256"` // max linux hostname size as per manpage
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
 
 // PathInfo contains a full path and other basic info
 type PathInfo struct {
@@ -43,6 +59,7 @@ func indexFiles(db *gorm.DB) error {
 	return nil
 }
 
+// Handles paths inputted into it. Rudimentary queue system
 func handlePaths(paths []string, db *gorm.DB) error {
 	// Queue size = double the cpu count
 	queueLength := runtime.NumCPU() * 2
@@ -93,6 +110,7 @@ func handlePaths(paths []string, db *gorm.DB) error {
 	return nil
 }
 
+// Async function, takes a list of paths and turns it into a list of information needed for db insertion
 func processFilesAsync(paths []PathInfo) []File {
 	pathsLength := len(paths)
 	files := make([]File, 0)
@@ -118,7 +136,7 @@ func processFilesAsync(paths []PathInfo) []File {
 				panic(err)
 			}
 
-			fmt.Printf("Found %s files.\n", pi.Path)
+			fmt.Printf("Processing %s\n", pi.Path)
 
 			files = append(files, file)
 		}(i)
@@ -144,6 +162,7 @@ func getFileSizeInBytes(path string) (int64, error) {
 	return size, nil
 }
 
+// Gets all the info needed for insert into db
 func createFile(pi PathInfo) (File, error) {
 	Crc32, err := hashFileCrc32(pi.Path)
 
