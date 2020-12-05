@@ -84,6 +84,7 @@ func stringToMurmur(path string) uint32 {
 	return murmur.Murmur3([]byte(path))
 }
 
+// HashStringMd5 generates an md5 hash from a string
 func HashStringMd5(text string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(text))
