@@ -11,7 +11,7 @@ import (
 // Iterate through files in directory
 func listFiles(db *gorm.DB) ([]string, error) {
 	fileList := make([]string, 0)
-	fileQueueFlushLimit := 64
+	fileQueueFlushLimit := 1
 	fileQueue := make([]File, 0)
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
 		// Don't process directories

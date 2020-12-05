@@ -51,12 +51,6 @@ func createFile(path string) (File, error) {
 		return File{}, err
 	}
 
-	ImoHash, err := hashFileImo(path)
-
-	if err != nil {
-		return File{}, err
-	}
-
 	HostName, err := os.Hostname()
 
 	if err != nil {
@@ -71,7 +65,6 @@ func createFile(path string) (File, error) {
 		FileSizeBytes:      FileSizeBytes,
 		ExtensionLowerCase: trimLeftChars(strings.ToLower(filepath.Ext(path)), 1),
 		Crc32:              Crc32,
-		ImoHash:            ImoHash,
 		HostName:           HostName}
 
 	return file, nil
