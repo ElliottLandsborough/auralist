@@ -19,6 +19,8 @@ func main() {
 			processPaths()
 		case "parsetags":
 			parseTags()
+		case "listen":
+			server()
 		default:
 			fmt.Printf("Please choose a command.\n")
 		}

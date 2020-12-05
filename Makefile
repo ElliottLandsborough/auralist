@@ -1,8 +1,12 @@
 build:
 	GOOS=linux GOARCH=amd64 go build -o bin/auralist *.go
 
-run:
-	go run *.go
+.PHONY: api
+api:
+	GOOS=linux GOARCH=amd64 go build -o bin/auralist-api api/*.go
+
+listen:
+	go run *.go listen
 
 collect:
 	go run *.go collectPaths
