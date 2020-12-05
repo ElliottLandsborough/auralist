@@ -47,8 +47,6 @@ func processPaths() {
 		panic(e)
 	}
 
-	deleteAllFiles(db)
-
 	// migrate
 	db.AutoMigrate(&File{})
 

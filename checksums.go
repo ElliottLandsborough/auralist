@@ -83,3 +83,9 @@ func hashFileMd5(filePath string) (string, error) {
 func stringToMurmur(path string) uint32 {
 	return murmur.Murmur3([]byte(path))
 }
+
+func HashStringMd5(text string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(text))
+	return hex.EncodeToString(hasher.Sum(nil))
+}

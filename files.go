@@ -17,6 +17,7 @@ type File struct {
 	ID                 uint
 	FileName           string // donk.mp3
 	Path               string // /home/ubuntu/Music/donk.mp3
+	FullPathMd5        string `gorm:"index;size:32"`
 	Base               string
 	PathHash           uint32 `gorm:"index"` // murmur3(Path)
 	FileSizeBytes      int64  // file size in bytes (maximum 4294967295, 4gb!)
@@ -40,33 +41,35 @@ func handlePaths(paths []string, db *gorm.DB) error {
 
 	// Loop through all the paths
 	for _, path := range paths {
-		// Get filesize for this item
-		size, err := getFileSizeInBytes(path)
+		if fileIsInDatabase(path, db) == false {
+			// Get filesize for this item
+			size, err := getFileSizeInBytes(path)
 
-		if err != nil {
-			panic(err)
-		}
+			if err != nil {
+				panic(err)
+			}
 
-		// Add size to combined size
-		combinedSize = combinedSize + size
+			// Add size to combined size
+			combinedSize = combinedSize + size
 
-		path := PathInfo{
-			Path: path,
-			Size: size}
+			path := PathInfo{
+				Path: path,
+				Size: size}
 
-		// Add item to queue
-		queueItems = append(queueItems, path)
+			// Add item to queue
+			queueItems = append(queueItems, path)
 
-		// If we hit the size limit, process
-		if combinedSize > fileSizeLimit {
-			createFileRows(db, processFilesAsync(queueItems))
-			queueItems = nil
-		}
+			// If we hit the size limit, process
+			if combinedSize > fileSizeLimit {
+				createFileRows(db, processFilesAsync(queueItems))
+				queueItems = nil
+			}
 
-		// If we hit the queue length limit, process
-		if len(queueItems) >= queueLength {
-			createFileRows(db, processFilesAsync(queueItems))
-			queueItems = nil
+			// If we hit the queue length limit, process
+			if len(queueItems) >= queueLength {
+				createFileRows(db, processFilesAsync(queueItems))
+				queueItems = nil
+			}
 		}
 	}
 
@@ -76,6 +79,26 @@ func handlePaths(paths []string, db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+func fileIsInDatabase(path string, db *gorm.DB) bool {
+	md5 := HashStringMd5(path)
+
+	HostName, err := os.Hostname()
+
+	if err != nil {
+		panic(err)
+	}
+
+	file := File{}
+
+	db.Where(&File{FullPathMd5: md5, HostName: HostName}).First(&file)
+
+	if len(file.FullPathMd5) > 0 {
+		return true
+	}
+
+	return false
 }
 
 // Async function, takes a list of paths and turns it into a list of information needed for db insertion
@@ -147,6 +170,7 @@ func createFile(pi PathInfo) (File, error) {
 	file := File{
 		PathHash:           stringToMurmur(pi.Path),
 		FileName:           filepath.Base(pi.Path),
+		FullPathMd5:        HashStringMd5(pi.Path),
 		Path:               strings.ReplaceAll(pi.Path, conf.SearchDirectory, ""),
 		Base:               conf.SearchDirectory,
 		FileSizeBytes:      pi.Size,
