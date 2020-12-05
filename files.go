@@ -4,27 +4,29 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
 	"gorm.io/gorm"
 )
 
+// PathInfo contains a full path and other basic info
+type PathInfo struct {
+	Path string // /home/ubuntu/Music/donk.mp3
+	Size int64  // file size in bytes (maximum 4294967295, 4gb!)
+}
+
 // Iterate through files in directory
 func indexFiles(db *gorm.DB) error {
 	paths := make([]string, 0)
-	queueSize := 64
+
+	fmt.Println("Collecting paths...")
 
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
 		// Don't process directories
 		if !f.IsDir() {
-			fmt.Println(path)
-
-			paths, err = handlePaths(path, paths, queueSize, db)
-
-			if err != nil {
-				panic(err)
-			}
+			paths = append(paths, path)
 		}
 
 		return err
@@ -34,22 +36,64 @@ func indexFiles(db *gorm.DB) error {
 		panic(e)
 	}
 
+	fmt.Printf("Found %d files.\n", len(paths))
+
+	handlePaths(paths, db)
+
 	return nil
 }
 
-func handlePaths(path string, paths []string, queueSize int, db *gorm.DB) ([]string, error) {
-	paths = append(paths, path)
+func handlePaths(paths []string, db *gorm.DB) error {
+	// Queue size = double the cpu count
+	queueLength := runtime.NumCPU() * 2
+	// Limit queue to a file size also
+	var fileSizeLimit int64 = 500000000
+	// Initialize combined size
+	var combinedSize int64 = 0
+	// Init empty queue items slice
+	queueItems := make([]PathInfo, 0)
 
-	if len(paths) > queueSize {
-		files := processFilesAsync(paths)
-		createFileRows(db, files)
-		paths = nil
+	// Loop through all the paths
+	for _, path := range paths {
+		// Get filesize for this item
+		size, err := getFileSizeInBytes(path)
+
+		if err != nil {
+			panic(err)
+		}
+
+		// Add size to combined size
+		combinedSize = combinedSize + size
+
+		path := PathInfo{
+			Path: path,
+			Size: size}
+
+		// Add item to queue
+		queueItems = append(queueItems, path)
+
+		// If we hit the size limit, process
+		if combinedSize > fileSizeLimit {
+			createFileRows(db, processFilesAsync(queueItems))
+			queueItems = nil
+		}
+
+		// If we hit the queue length limit, process
+		if len(queueItems) >= queueLength {
+			createFileRows(db, processFilesAsync(queueItems))
+			queueItems = nil
+		}
 	}
 
-	return paths, nil
+	// If we got here and we still have items left, process
+	if len(queueItems) > 0 {
+		createFileRows(db, processFilesAsync(queueItems))
+	}
+
+	return nil
 }
 
-func processFilesAsync(paths []string) []File {
+func processFilesAsync(paths []PathInfo) []File {
 	pathsLength := len(paths)
 	files := make([]File, 0)
 
@@ -66,11 +110,15 @@ func processFilesAsync(paths []string) []File {
 			// When this thread finishes let the waitgroup know
 			defer wg.Done()
 
-			file, err := createFile(paths[i])
+			pi := paths[i]
+
+			file, err := createFile(pi)
 
 			if err != nil {
 				panic(err)
 			}
+
+			fmt.Printf("Found %s files.\n", pi.Path)
 
 			files = append(files, file)
 		}(i)
@@ -96,14 +144,8 @@ func getFileSizeInBytes(path string) (int64, error) {
 	return size, nil
 }
 
-func createFile(path string) (File, error) {
-	FileSizeBytes, err := getFileSizeInBytes(path)
-
-	if err != nil {
-		return File{}, err
-	}
-
-	Crc32, err := hashFileCrc32(path)
+func createFile(pi PathInfo) (File, error) {
+	Crc32, err := hashFileCrc32(pi.Path)
 
 	if err != nil {
 		return File{}, err
@@ -116,12 +158,12 @@ func createFile(path string) (File, error) {
 	}
 
 	file := File{
-		PathHash:           stringToMurmur(path),
-		FileName:           filepath.Base(path),
-		Path:               strings.ReplaceAll(path, conf.SearchDirectory, ""),
+		PathHash:           stringToMurmur(pi.Path),
+		FileName:           filepath.Base(pi.Path),
+		Path:               strings.ReplaceAll(pi.Path, conf.SearchDirectory, ""),
 		Base:               conf.SearchDirectory,
-		FileSizeBytes:      FileSizeBytes,
-		ExtensionLowerCase: trimLeftChars(strings.ToLower(filepath.Ext(path)), 1),
+		FileSizeBytes:      pi.Size,
+		ExtensionLowerCase: trimLeftChars(strings.ToLower(filepath.Ext(pi.Path)), 1),
 		Crc32:              Crc32,
 		HostName:           HostName}
 
