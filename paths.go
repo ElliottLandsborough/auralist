@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -14,21 +15,17 @@ type PathInfo struct {
 }
 
 // Get all paths from folder specified in config
-func readPaths() {
-	paths := make([]string, 0)
+func readPaths(cacheFile string) {
+	if _, err := os.Stat(cacheFile); err == nil {
+		panic("Clear your cache first?")
+	}
 
 	fmt.Println("Collecting paths...")
-
-	fileName := "cache/paths.log"
-
-	// Versioning??
-	//unixTime := strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
-	//fileName := "cache/paths." + unixTime + ".log"
 
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
 		// Don't process directories
 		if !f.IsDir() {
-			writePathToCache(path, fileName)
+			writePathToCache(path, cacheFile)
 		}
 
 		return err
@@ -37,13 +34,11 @@ func readPaths() {
 	if e != nil {
 		panic(e)
 	}
-
-	fmt.Printf("Found %d files.\n", len(paths))
 }
 
 // Write a path line to the cache file
-func writePathToCache(path string, fileName string) {
-	f, err := os.OpenFile(fileName,
+func writePathToCache(path string, cacheFile string) {
+	f, err := os.OpenFile(cacheFile,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Println(err)
@@ -53,4 +48,31 @@ func writePathToCache(path string, fileName string) {
 	if _, err := f.WriteString(path + "\n"); err != nil {
 		log.Println(err)
 	}
+}
+
+func getFilePaths(fi string) []string {
+	if _, err := os.Stat(fi); os.IsNotExist(err) {
+		panic("Paths have not been collected yet")
+	}
+
+	paths := make([]string, 0)
+
+	f, err := os.Open(fi)
+	if err != nil {
+		fmt.Println("error opening file= ", err)
+		os.Exit(1)
+	}
+	r := bufio.NewReader(f)
+	s, e := Readln(r)
+	for e == nil {
+		// If the path is not zero length
+		if len(s) > 0 {
+			paths = append(paths, s)
+		}
+
+		// Keep going until lines run out
+		s, e = Readln(r)
+	}
+
+	return paths
 }

@@ -28,10 +28,18 @@ func main() {
 }
 
 func collectPaths() {
-	readPaths()
+	fileName := "cache/paths.log"
+
+	// Versioning??
+	//unixTime := strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+	//fileName := "cache/paths." + unixTime + ".log"
+
+	readPaths(fileName)
 }
 
 func processPaths() {
+	fileName := "cache/paths.log"
+
 	// check db is ready
 	db, e := getDB()
 
@@ -44,19 +52,7 @@ func processPaths() {
 	// migrate
 	db.AutoMigrate(&File{})
 
-	/*
-		// Iterate through files in directory
-		func indexFiles(db *gorm.DB) error {
-
-			paths := collectPaths()
-
-			handlePaths(paths, db)
-
-			return nil
-		}
-	*/
-	// iterate through files
-	//indexFiles(db)
+	handlePaths(getFilePaths(fileName), db)
 }
 
 func parseTags() {
