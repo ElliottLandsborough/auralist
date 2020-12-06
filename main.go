@@ -108,6 +108,9 @@ func syncFiles() {
 
 	remoteFilePath := remotePath + "cpuinfo"
 
+	// Get remote hostname
+	hostName, err := remoteRun("hostname", getSSHSession(sshClient))
+
 	// Usage: CopyFile(fileReader, remotePath, permission)
 	err = scpClient.CopyFile(f, remoteFilePath, "0644")
 
@@ -117,6 +120,11 @@ func syncFiles() {
 	// Get sha1 of remote file
 	sha1sum := hashFileSHA1Remote(remoteFilePath, sshClient)
 
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(hostName)
 	fmt.Println(md5sum)
 	fmt.Println(sha1sum)
 
