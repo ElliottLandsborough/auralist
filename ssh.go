@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -99,7 +100,7 @@ func remoteRun(command string, session *ssh.Session) (string, error) {
 
 	err := session.Run(command)
 
-	stdOut := stdoutBuf.String()
+	stdOut := strings.TrimSpace(stdoutBuf.String())
 
 	return stdOut, err
 }
