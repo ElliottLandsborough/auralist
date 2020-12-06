@@ -17,6 +17,9 @@ process:
 tag:
 	go run *.go parsetags
 
+sync:
+	go run *.go syncFiles
+
 deps:
 	go get ./...
 

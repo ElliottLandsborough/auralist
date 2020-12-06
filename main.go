@@ -19,6 +19,8 @@ func main() {
 			processPaths()
 		case "parsetags":
 			parseTags()
+		case "syncFiles":
+			syncFiles()
 		case "listen":
 			server()
 		default:
@@ -81,6 +83,10 @@ func parseTags() {
 		db.ScanRows(rows, &file)
 		parseTagsToDb(file, db)
 	}
+}
+
+func syncFiles() {
+	copyFiles()
 }
 
 /**

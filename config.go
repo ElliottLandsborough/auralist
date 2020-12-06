@@ -8,11 +8,17 @@ import (
 
 // Create private data struct to hold config options.
 type config struct {
-	MysqlDatabase   string `yaml:"MysqlDatabase"`
+	MysqlDatabase   string `yaml:"mysqlDatabase"`
 	MysqlHost       string `yaml:"mysqlHost"`
 	MysqlUser       string `yaml:"mysqlUser"`
 	MysqlPass       string `yaml:"mysqlPass"`
 	SearchDirectory string `yaml:"searchDirectory"`
+	SSHServer       string `yaml:"sshServer"`
+	SSHPort         string `yaml:"sshPort"`
+	SSHUser         string `yaml:"sshUser"`
+	SSHKey          string `yaml:"sshKey"`
+	SSHHostKey      string `yaml:"SSHHostKey"`
+	RemotePath      string `yaml:"remotePath"`
 }
 
 // Create a new config instance.
@@ -43,13 +49,20 @@ func getConf() *config {
 		panic("Please set a `searchDirectory` in config.yml")
 	}
 
+	conf.SearchDirectory = appendTrailingSlashIfNotExist(conf.SearchDirectory)
+	conf.RemotePath = appendTrailingSlashIfNotExist(conf.RemotePath)
+
+	return conf
+}
+
+func appendTrailingSlashIfNotExist(s string) string {
 	// if a dir was set
-	if len(sd) > 0 {
+	if len(s) > 0 {
 		// if it doesn't end in slash
-		if sd[len(sd)-1:] != "/" {
-			conf.SearchDirectory = conf.SearchDirectory + "/"
+		if s[len(s)-1:] != "/" {
+			s = s + "/"
 		}
 	}
 
-	return conf
+	return s
 }
