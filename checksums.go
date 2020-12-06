@@ -11,6 +11,7 @@ import (
 
 	"github.com/kalafut/imohash"
 	"github.com/vcaesar/murmur"
+	"golang.org/x/crypto/ssh"
 )
 
 // Get crc32 hash as an integer
@@ -89,4 +90,52 @@ func HashStringMd5(text string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(text))
 	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+// hashFileMd5Remote gets the md5 hash of a file on the other end of an ssh connection
+func hashFileMD5Remote(path string, sshClient *ssh.Client) string {
+	session := getSSHSession(sshClient)
+	defer session.Close()
+
+	command := "/usr/bin/md5sum -z \"" + path + "\""
+
+	output, err := remoteRun(command, session)
+
+	if len(output) == 0 {
+		panic("MD5 failed.")
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	// get first 32 chars
+	md5sum := output[0:31]
+
+	return md5sum
+}
+
+// hashFileSHA1Remote gets the sha1 hash of a file on the other end of an ssh connection
+func hashFileSHA1Remote(path string, sshClient *ssh.Client) string {
+	session := getSSHSession(sshClient)
+	defer session.Close()
+
+	command := "/usr/bin/sha1sum -z \"" + path + "\""
+
+	fmt.Println(command)
+
+	output, err := remoteRun(command, session)
+
+	if len(output) == 0 {
+		panic("SHA1 failed.")
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	// get first 32 chars
+	sha1sum := output[0:39]
+
+	return sha1sum
 }

@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 
-	scp "github.com/bramvdbogaerde/go-scp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -62,7 +61,10 @@ func trustedHostKeyCallback(trustedKey string) ssh.HostKeyCallback {
 	}
 }
 
-func getSSHClient(server string, user string) *ssh.Client {
+func getSSHClient() *ssh.Client {
+	server := conf.SSHServer + ":" + conf.SSHPort
+	user := conf.SSHUser
+
 	signer, _ := ssh.ParsePrivateKey(getPrivateKey())
 	clientConfig := &ssh.ClientConfig{
 		User: user,
@@ -88,93 +90,6 @@ func getSSHSession(client *ssh.Client) *ssh.Session {
 	}
 
 	return session
-}
-
-func copyFiles() {
-	server := conf.SSHServer + ":" + conf.SSHPort
-	user := conf.SSHUser
-	remotePath := conf.RemotePath
-
-	sshClient := getSSHClient(server, user)
-
-	scpClient, err := scp.NewClientBySSH(sshClient)
-	if err != nil {
-		fmt.Println("Error creating new SSH session from existing connection", err)
-	}
-
-	// Open a file
-	f, _ := os.Open("/proc/cpuinfo")
-
-	// Close client connection after the file has been copied
-	defer scpClient.Close()
-
-	// Close the file after it has been copied
-	defer f.Close()
-
-	remoteFilePath := remotePath + "cpuinfo"
-
-	// Usage: CopyFile(fileReader, remotePath, permission)
-	err = scpClient.CopyFile(f, remoteFilePath, "0644")
-
-	// Get md5 of remote file
-	md5sum := md5RemoteFile(remoteFilePath, sshClient)
-
-	// Get sha1 of remote file
-	sha1sum := sha1RemoteFile(remoteFilePath, sshClient)
-
-	fmt.Println(md5sum)
-	fmt.Println(sha1sum)
-
-	if err != nil {
-		fmt.Println("Error while copying file ", err)
-	}
-}
-
-func md5RemoteFile(path string, sshClient *ssh.Client) string {
-	session := getSSHSession(sshClient)
-	defer session.Close()
-
-	command := "/usr/bin/md5sum -z \"" + path + "\""
-
-	output, err := remoteRun(command, session)
-
-	if len(output) == 0 {
-		panic("MD5 failed.")
-	}
-
-	if err != nil {
-		panic(err)
-	}
-
-	// get first 32 chars
-	md5sum := output[0:31]
-
-	return md5sum
-}
-
-// 1937c5c26c25fba7e07e48eb8ec39dcf04e033a5
-func sha1RemoteFile(path string, sshClient *ssh.Client) string {
-	session := getSSHSession(sshClient)
-	defer session.Close()
-
-	command := "/usr/bin/sha1sum -z \"" + path + "\""
-
-	fmt.Println(command)
-
-	output, err := remoteRun(command, session)
-
-	if len(output) == 0 {
-		panic("SHA1 failed.")
-	}
-
-	if err != nil {
-		panic(err)
-	}
-
-	// get first 32 chars
-	sha1sum := output[0:39]
-
-	return sha1sum
 }
 
 // e.g. output, err := remoteRun("whoami", session)

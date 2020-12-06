@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/bramvdbogaerde/go-scp"
 )
 
 func main() {
@@ -86,7 +88,41 @@ func parseTags() {
 }
 
 func syncFiles() {
-	copyFiles()
+	remotePath := conf.RemotePath
+
+	sshClient := getSSHClient()
+
+	scpClient, err := scp.NewClientBySSH(sshClient)
+	if err != nil {
+		fmt.Println("Error creating new SSH session from existing connection", err)
+	}
+
+	// Open a file
+	f, _ := os.Open("/proc/cpuinfo")
+
+	// Close client connection after the file has been copied
+	defer scpClient.Close()
+
+	// Close the file after it has been copied
+	defer f.Close()
+
+	remoteFilePath := remotePath + "cpuinfo"
+
+	// Usage: CopyFile(fileReader, remotePath, permission)
+	err = scpClient.CopyFile(f, remoteFilePath, "0644")
+
+	// Get md5 of remote file
+	md5sum := hashFileMD5Remote(remoteFilePath, sshClient)
+
+	// Get sha1 of remote file
+	sha1sum := hashFileSHA1Remote(remoteFilePath, sshClient)
+
+	fmt.Println(md5sum)
+	fmt.Println(sha1sum)
+
+	if err != nil {
+		fmt.Println("Error while copying file ", err)
+	}
 }
 
 /**
