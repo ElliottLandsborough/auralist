@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -96,7 +97,7 @@ func copyFiles() {
 
 	sshClient := getSSHClient(server, user)
 
-	client, err := scp.NewClientBySSH(sshClient)
+	scpClient, err := scp.NewClientBySSH(sshClient)
 	if err != nil {
 		fmt.Println("Error creating new SSH session from existing connection", err)
 	}
@@ -105,15 +106,85 @@ func copyFiles() {
 	f, _ := os.Open("/proc/cpuinfo")
 
 	// Close client connection after the file has been copied
-	defer client.Close()
+	defer scpClient.Close()
 
 	// Close the file after it has been copied
 	defer f.Close()
 
+	remoteFilePath := remotePath + "cpuinfo"
+
 	// Usage: CopyFile(fileReader, remotePath, permission)
-	err = client.CopyFile(f, remotePath+"cpuinfo", "0644")
+	err = scpClient.CopyFile(f, remoteFilePath, "0644")
+
+	// Get md5 of remote file
+	md5sum := md5RemoteFile(remoteFilePath, sshClient)
+
+	// Get sha1 of remote file
+	sha1sum := sha1RemoteFile(remoteFilePath, sshClient)
+
+	fmt.Println(md5sum)
+	fmt.Println(sha1sum)
 
 	if err != nil {
 		fmt.Println("Error while copying file ", err)
 	}
+}
+
+func md5RemoteFile(path string, sshClient *ssh.Client) string {
+	session := getSSHSession(sshClient)
+	defer session.Close()
+
+	command := "/usr/bin/md5sum -z \"" + path + "\""
+
+	output, err := remoteRun(command, session)
+
+	if len(output) == 0 {
+		panic("MD5 failed.")
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	// get first 32 chars
+	md5sum := output[0:31]
+
+	return md5sum
+}
+
+// 1937c5c26c25fba7e07e48eb8ec39dcf04e033a5
+func sha1RemoteFile(path string, sshClient *ssh.Client) string {
+	session := getSSHSession(sshClient)
+	defer session.Close()
+
+	command := "/usr/bin/sha1sum -z \"" + path + "\""
+
+	fmt.Println(command)
+
+	output, err := remoteRun(command, session)
+
+	if len(output) == 0 {
+		panic("SHA1 failed.")
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	// get first 32 chars
+	sha1sum := output[0:39]
+
+	return sha1sum
+}
+
+// e.g. output, err := remoteRun("whoami", session)
+func remoteRun(command string, session *ssh.Session) (string, error) {
+	var stdoutBuf bytes.Buffer
+	session.Stdout = &stdoutBuf
+
+	err := session.Run(command)
+
+	stdOut := stdoutBuf.String()
+
+	return stdOut, err
 }
