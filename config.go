@@ -19,6 +19,7 @@ type config struct {
 	SSHKey          string `yaml:"sshKey"`
 	SSHHostKey      string `yaml:"SSHHostKey"`
 	RemotePath      string `yaml:"remotePath"`
+	RemoteOldPath   string `yaml:"remoteOldPath"`
 }
 
 // Create a new config instance.

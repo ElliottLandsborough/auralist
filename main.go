@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-
-	"github.com/bramvdbogaerde/go-scp"
 )
 
 func main() {
@@ -88,49 +86,97 @@ func parseTags() {
 }
 
 func syncFiles() {
-	remotePath := conf.RemotePath
+	// check db is ready
+	db, e := getDB()
 
-	sshClient := getSSHClient()
-
-	scpClient, err := scp.NewClientBySSH(sshClient)
-	if err != nil {
-		fmt.Println("Error creating new SSH session from existing connection", err)
+	if e != nil {
+		panic(e)
 	}
 
-	// Open a file
-	f, _ := os.Open("/proc/cpuinfo")
+	// Connect to server
+	sshClient := getSSHClient()
 
-	// Close client connection after the file has been copied
-	defer scpClient.Close()
-
-	// Close the file after it has been copied
-	defer f.Close()
-
-	remoteFilePath := remotePath + "cpuinfo"
-
-	// Get remote hostname
-	hostName, err := remoteRun("hostname", getSSHSession(sshClient))
-
-	// Usage: CopyFile(fileReader, remotePath, permission)
-	err = scpClient.CopyFile(f, remoteFilePath, "0644")
-
-	// Get md5 of remote file
-	md5sum := hashFileMD5Remote(remoteFilePath, sshClient)
-
-	// Get sha1 of remote file
-	sha1sum := hashFileSHA1Remote(remoteFilePath, sshClient)
-
+	// Get local hostname
+	localHostName, err := os.Hostname()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(hostName)
-	fmt.Println(md5sum)
-	fmt.Println(sha1sum)
+	// Get remote hostname
+	remoteHostName, err := remoteRun("hostname", getSSHSession(sshClient))
 
-	if err != nil {
-		fmt.Println("Error while copying file ", err)
+	// Empty array of files
+	files := make([]File, 0)
+
+	// Get all files for this hostname
+	db.Where(&File{HostName: localHostName}).Find(&files)
+
+	// Loop through all the files
+	for _, file := range files {
+		// Empty array of files
+		potentialDuplicate := File{}
+
+		// Check remote location for file
+
+		// Check db for first result where crc32 match
+		db.Where(&File{HostName: remoteHostName, Crc32: file.Crc32}).First(&potentialDuplicate)
+
+		// If file size is zero
+		// manually generate it
+		// stop loop here
+
+		// If we got a match
+		if len(potentialDuplicate.FileName) > 0 {
+			// Does local md5 match remote md5?
+		}
+
+		// Copy old file to new location with all
+
+		// If current local file doesn't have a duplicate on remote server
+
+		// Upload it
 	}
+
+	/*
+			remotePath := conf.RemotePath
+
+			scpClient, err := scp.NewClientBySSH(sshClient)
+			if err != nil {
+				fmt.Println("Error creating new SSH session from existing connection", err)
+			}
+
+			// Open a file
+			f, _ := os.Open("/proc/cpuinfo")
+
+			// Close client connection after the file has been copied
+			defer scpClient.Close()
+
+			// Close the file after it has been copied
+			defer f.Close()
+
+			remoteFilePath := remotePath + "cpuinfo"
+
+			// Usage: CopyFile(fileReader, remotePath, permission)
+			err = scpClient.CopyFile(f, remoteFilePath, "0644")
+
+			// Get md5 of remote file
+			md5sum := hashFileMD5Remote(remoteFilePath, sshClient)
+
+			// Get sha1 of remote file
+			sha1sum := hashFileSHA1Remote(remoteFilePath, sshClient)
+
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Println(hostName)
+			fmt.Println(md5sum)
+			fmt.Println(sha1sum)
+
+			if err != nil {
+				fmt.Println("Error while copying file ", err)
+		  }
+	*/
 }
 
 /**
