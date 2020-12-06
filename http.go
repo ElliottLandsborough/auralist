@@ -17,8 +17,6 @@ type Article struct {
 	Content string `json:"content"`
 }
 
-var Articles []Article
-
 func homePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Welcome to the HomePage!")
 	fmt.Println("Endpoint Hit: homePage")
@@ -26,7 +24,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 
 func returnAllArticles(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint Hit: returnAllArticles")
-	json.NewEncoder(w).Encode(Articles)
+	json.NewEncoder(w).Encode(getAllArticles())
 }
 
 func handleRequests() {
@@ -35,10 +33,15 @@ func handleRequests() {
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
-func server() {
-	Articles = []Article{
+func getAllArticles() []Article {
+	articles := []Article{
 		Article{ID: "1", Title: "Hello", Desc: "Article Description", Content: "Article Content"},
 		Article{ID: "2", Title: "Hello 2", Desc: "Article Description", Content: "Article Content"},
 	}
+
+	return articles
+}
+
+func server() {
 	handleRequests()
 }
