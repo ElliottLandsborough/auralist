@@ -179,5 +179,4 @@ func createFile(pi PathInfo) (File, error) {
 		HostName:           HostName}
 
 	return file, nil
-
 }
