@@ -52,6 +52,7 @@ func getConf() *config {
 
 	conf.SearchDirectory = appendTrailingSlashIfNotExist(conf.SearchDirectory)
 	conf.RemotePath = appendTrailingSlashIfNotExist(conf.RemotePath)
+	conf.RemoteOldPath = appendTrailingSlashIfNotExist(conf.RemoteOldPath)
 
 	return conf
 }

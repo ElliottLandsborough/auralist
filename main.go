@@ -102,51 +102,74 @@ func syncFiles() {
 		panic(err)
 	}
 
-	// Get remote hostname
-	remoteHostName, err := remoteRun("hostname", getSSHSession(sshClient))
-
 	// Empty array of files
 	files := make([]File, 0)
 
 	// Get all files for this hostname
 	db.Where(&File{HostName: localHostName}).Find(&files)
 
+	// Get remote path from conf
+	remotePath := conf.RemotePath
+
 	// Loop through all the files
 	for _, file := range files {
-		// Empty array of files
-		potentialDuplicate := File{}
+		// path to local file
+		localFullPath := file.Base + file.Path
 
-		// Check remote location for file
+		// path to file on remote server e.g /home/user/sync/trojans/sub7.exe
+		remoteFullPath := remotePath + file.Path
 
-		// Check db for first result where crc32 match
-		db.Where(&File{HostName: remoteHostName, Crc32: file.Crc32}).First(&potentialDuplicate)
-
-		// If file size is zero
-		// manually generate it
-		// stop loop here
-
-		// If we got a match
-		if len(potentialDuplicate.FileName) > 0 {
-			// Does local md5 match remote md5?
+		// File already exists, and the md5sum matches, skip to next file in loop
+		if fileMatchOnRemoteServer(localFullPath, remoteFullPath, sshClient) {
+			fmt.Println("Skipping file that already exists.")
+			continue
 		}
 
-		// Copy old file to new location with all
+		// If file size is zero locally, just create it on remote, no need to upload or check
+		if file.FileSizeBytes == 0 {
+			if !createZeroFileOnRemoteServerIfNotExists(remoteFullPath, sshClient) {
+				panic("Could not create remote empty file.")
+			}
+			fmt.Println("Creating zero file.")
+			continue
+		}
 
-		// If current local file doesn't have a duplicate on remote server
+		/*
+			// Get remote hostname
+			remoteHostName, err := remoteRun("hostname", getSSHSession(sshClient))
 
-		// Upload it
-	}
+			// Empty file
+			potentialDuplicate := File{}
 
-	/*
-			remotePath := conf.RemotePath
+			// Check db for first result where crc32 match
+			db.Where(&File{HostName: remoteHostName, Crc32: file.Crc32}).First(&potentialDuplicate)
 
+			// If we have a CRC32 match on the remote server for this file (check in '')
+			if len(potentialDuplicate.FileName) > 0 {
+				// generate path to file in old folder
+				remoteOldFullPath := conf.RemoteOldPath + file.Path
+
+				// Does local md5 match remote old path md5?
+				if fileMatchOnRemoteServer(localFullPath, remoteOldFullPath, sshClient) {
+					// Create directories on remote server
+					createDirectoryRecursiveRemote(remoteFullPath, sshClient)
+					// Copy file one remote from old location to new location
+					if !copyFileRemote(remoteOldFullPath, remoteFullPath, sshClient) {
+						panic("Remote copy failed.")
+					}
+					// Copy success, move to next file
+					continue
+				}
+			}
+
+			// If we got this far and no conditions were met, upload the file
 			scpClient, err := scp.NewClientBySSH(sshClient)
 			if err != nil {
 				fmt.Println("Error creating new SSH session from existing connection", err)
 			}
 
 			// Open a file
-			f, _ := os.Open("/proc/cpuinfo")
+			f, _ := os.Open(localFullPath)
 
 			// Close client connection after the file has been copied
 			defer scpClient.Close()
@@ -154,29 +177,18 @@ func syncFiles() {
 			// Close the file after it has been copied
 			defer f.Close()
 
-			remoteFilePath := remotePath + "cpuinfo"
-
 			// Usage: CopyFile(fileReader, remotePath, permission)
-			err = scpClient.CopyFile(f, remoteFilePath, "0644")
+			err = scpClient.CopyFile(f, remoteFullPath, "0644")
 
-			// Get md5 of remote file
-			md5sum := hashFileMD5Remote(remoteFilePath, sshClient)
-
-			// Get sha1 of remote file
-			sha1sum := hashFileSHA1Remote(remoteFilePath, sshClient)
+			if err != nil {
+				fmt.Println("Error while copying file ", err)
+			}
 
 			if err != nil {
 				panic(err)
 			}
-
-			fmt.Println(hostName)
-			fmt.Println(md5sum)
-			fmt.Println(sha1sum)
-
-			if err != nil {
-				fmt.Println("Error while copying file ", err)
-		  }
-	*/
+		*/
+	}
 }
 
 /**
