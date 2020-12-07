@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/ssh"
+	"gorm.io/gorm"
 )
 
 // Initialization routine.
@@ -223,7 +224,7 @@ func copyFileRemote(source string, destination string, sshClient *ssh.Client) bo
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "cp \"" + source + "\"" + "\"" + destination + "\""
+	command := "cp \"" + source + "\" \"" + destination + "\""
 
 	_, err := remoteRun(command, session)
 
@@ -234,4 +235,40 @@ func copyFileRemote(source string, destination string, sshClient *ssh.Client) bo
 
 	// zero output, success
 	return true
+}
+
+func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath string, db *gorm.DB, sshClient *ssh.Client) bool {
+	// Get remote hostname
+	remoteHostName, err := remoteRun("hostname", getSSHSession(sshClient))
+
+	if err != nil {
+		panic("Could not get local hostname")
+	}
+
+	// Empty file
+	potentialDuplicate := File{}
+
+	// Check db for first result where crc32 match
+	db.Where(&File{HostName: remoteHostName, Crc32: file.Crc32}).First(&potentialDuplicate)
+
+	// If we have a CRC32 match on the remote server for this file (check in '')
+	if len(potentialDuplicate.FileName) > 0 {
+		fmt.Println("Matched old file \"" + potentialDuplicate.FileName + "\"")
+
+		// generate path to file in old folder
+		remoteOldFullPath := conf.RemoteOldPath + potentialDuplicate.Path
+
+		// Does local md5 match remote old path md5?
+		if fileMatchOnRemoteServer(localFullPath, remoteOldFullPath, sshClient) {
+			// Create directories on remote server
+			createDirectoryRecursiveRemote(remoteFullPath, sshClient)
+			// Copy file one remote from old location to new location
+			if !copyFileRemote(remoteOldFullPath, remoteFullPath, sshClient) {
+				panic("Remote copy failed.")
+			}
+			// Copy success, move to next file
+			return true
+		}
+	}
+	return false
 }
