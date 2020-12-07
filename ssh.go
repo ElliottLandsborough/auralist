@@ -114,7 +114,7 @@ func fileExistsOnRemoteServer(path string, sshClient *ssh.Client) bool {
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "test -f \"" + path + "\""
+	command := "test -f " + shellescape.Quote(path)
 
 	_, err := remoteRun(command, session)
 
@@ -153,7 +153,7 @@ func createDirectoryRecursiveRemote(path string, sshClient *ssh.Client) bool {
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "mkdir -p \"" + path + "\""
+	command := "mkdir -p " + shellescape.Quote(path)
 
 	_, err := remoteRun(command, session)
 
@@ -171,7 +171,7 @@ func directoryExistsRemote(path string, sshClient *ssh.Client) bool {
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "test -d\"" + path + "\""
+	command := "test -d " + shellescape.Quote(path)
 
 	_, err := remoteRun(command, session)
 
@@ -189,7 +189,7 @@ func createEmptyFileRemote(path string, sshClient *ssh.Client) bool {
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "touch \"" + path + "\""
+	command := "touch " + shellescape.Quote(path)
 
 	_, err := remoteRun(command, session)
 
@@ -226,7 +226,7 @@ func copyFileRemote(source string, destination string, sshClient *ssh.Client) bo
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "cp \"" + source + "\" \"" + destination + "\""
+	command := "cp " + shellescape.Quote(source) + " " + shellescape.Quote(destination)
 
 	_, err := remoteRun(command, session)
 
@@ -255,7 +255,7 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 
 	// If we have a CRC32 match on the remote server for this file (check in '')
 	if len(potentialDuplicate.FileName) > 0 {
-		fmt.Println("Matched old file \"" + potentialDuplicate.FileName + "\"")
+		fmt.Println("Matched old file `" + potentialDuplicate.FileName + "`")
 
 		// generate path to file in old folder
 		remoteOldFullPath := conf.RemoteOldPath + potentialDuplicate.Path
@@ -290,7 +290,7 @@ func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Clie
 		panic("Could not create remote directory " + filepath.Dir(remoteFullPath))
 	}
 
-	fmt.Println("Uploading \"" + filepath.Base(remoteFullPath) + "\"")
+	fmt.Println("Uploading `" + filepath.Base(remoteFullPath) + "`")
 
 	// Close client connection after the file has been copied
 	defer scpClient.Close()

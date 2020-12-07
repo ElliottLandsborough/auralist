@@ -12,6 +12,7 @@ import (
 	"github.com/kalafut/imohash"
 	"github.com/vcaesar/murmur"
 	"golang.org/x/crypto/ssh"
+	"gopkg.in/alessio/shellescape.v1"
 )
 
 // Get crc32 hash as an integer
@@ -97,7 +98,7 @@ func hashFileMD5Remote(path string, sshClient *ssh.Client) string {
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "/usr/bin/md5sum -z \"" + path + "\""
+	command := "/usr/bin/md5sum -z " + shellescape.Quote(path)
 
 	output, err := remoteRun(command, session)
 
@@ -120,7 +121,7 @@ func hashFileSHA1Remote(path string, sshClient *ssh.Client) string {
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "/usr/bin/sha1sum -z \"" + path + "\""
+	command := "/usr/bin/sha1sum -z " + shellescape.Quote(path)
 
 	fmt.Println(command)
 
