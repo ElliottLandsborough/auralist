@@ -123,8 +123,6 @@ func hashFileSHA1Remote(path string, sshClient *ssh.Client) string {
 
 	command := "/usr/bin/sha1sum -z " + shellescape.Quote(path)
 
-	fmt.Println(command)
-
 	output, err := remoteRun(command, session)
 
 	if len(output) == 0 {
