@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/bramvdbogaerde/go-scp"
 	"golang.org/x/crypto/ssh"
+	"gopkg.in/alessio/shellescape.v1"
 	"gorm.io/gorm"
 )
 
@@ -151,7 +153,7 @@ func createDirectoryRecursiveRemote(path string, sshClient *ssh.Client) bool {
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "mkdir -p\"" + path + "\""
+	command := "mkdir -p \"" + path + "\""
 
 	_, err := remoteRun(command, session)
 
@@ -271,4 +273,39 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 		}
 	}
 	return false
+}
+
+func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Client) {
+	scpClient, err := scp.NewClientBySSH(sshClient)
+	if err != nil {
+		fmt.Println("Error creating new SSH session from existing connection", err)
+	}
+
+	// Open a file
+	f, _ := os.Open(localFullPath)
+
+	//remoteFullPath = "/home/ubuntu/music-new/1/TEST.lol"
+
+	if !createDirectoryRecursiveRemote(filepath.Dir(remoteFullPath), sshClient) {
+		panic("Could not create remote directory " + filepath.Dir(remoteFullPath))
+	}
+
+	fmt.Println("Uploading \"" + filepath.Base(remoteFullPath) + "\"")
+
+	// Close client connection after the file has been copied
+	defer scpClient.Close()
+
+	// Close the file after it has been copied
+	defer f.Close()
+
+	// Usage: CopyFile(fileReader, remotePath, permission)
+	err = scpClient.CopyFile(f, shellescape.Quote(remoteFullPath), "0644")
+
+	if err != nil {
+		fmt.Println("Error while copying file ", localFullPath)
+	}
+
+	if err != nil {
+		panic(err)
+	}
 }

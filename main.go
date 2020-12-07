@@ -139,33 +139,8 @@ func syncFiles() {
 			continue
 		}
 
-		/*
-			// If we got this far and no conditions were met, upload the file
-			scpClient, err := scp.NewClientBySSH(sshClient)
-			if err != nil {
-				fmt.Println("Error creating new SSH session from existing connection", err)
-			}
-
-			// Open a file
-			f, _ := os.Open(localFullPath)
-
-			// Close client connection after the file has been copied
-			defer scpClient.Close()
-
-			// Close the file after it has been copied
-			defer f.Close()
-
-			// Usage: CopyFile(fileReader, remotePath, permission)
-			err = scpClient.CopyFile(f, remoteFullPath, "0644")
-
-			if err != nil {
-				fmt.Println("Error while copying file ", err)
-			}
-
-			if err != nil {
-				panic(err)
-			}
-		*/
+		// If we got this far and no conditions were met, upload the file
+		uploadFile(localFullPath, remoteFullPath, sshClient)
 	}
 }
 
