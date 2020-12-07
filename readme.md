@@ -25,7 +25,11 @@ cd $GOPATH/src/github.com/ElliottLandsborough/auralist
 make deps && make run
 ```
 
+Todo: Trim function to remove files from remote that don't exist.
+
 ## Remove useless files
+
+Todo: possibly turn this into code?
 
 ```bash
 
