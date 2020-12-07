@@ -20,7 +20,7 @@ func readPaths(cacheFile string) {
 		panic("Clear your cache first?")
 	}
 
-	fmt.Println("Collecting paths...")
+	log.Println("Collecting paths...")
 
 	e := filepath.Walk(conf.SearchDirectory, func(path string, f os.FileInfo, err error) error {
 		// Don't process directories

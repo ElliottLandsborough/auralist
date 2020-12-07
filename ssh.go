@@ -255,7 +255,7 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 
 	// If we have a CRC32 match on the remote server for this file (check in '')
 	if len(potentialDuplicate.FileName) > 0 {
-		fmt.Println("Matched old file `" + potentialDuplicate.FileName + "`")
+		log.Println("Matched old file `" + potentialDuplicate.FileName + "`")
 
 		// generate path to file in old folder
 		remoteOldFullPath := conf.RemoteOldPath + potentialDuplicate.Path
@@ -278,7 +278,7 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Client) {
 	scpClient, err := scp.NewClientBySSH(sshClient)
 	if err != nil {
-		fmt.Println("Error creating new SSH session from existing connection", err)
+		log.Println("Error creating new SSH session from existing connection", err)
 	}
 
 	// Open a file
@@ -290,7 +290,7 @@ func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Clie
 		panic("Could not create remote directory " + filepath.Dir(remoteFullPath))
 	}
 
-	fmt.Println("Uploading `" + filepath.Base(remoteFullPath) + "`")
+	log.Println("Uploading `" + filepath.Base(remoteFullPath) + "`")
 
 	// Close client connection after the file has been copied
 	defer scpClient.Close()

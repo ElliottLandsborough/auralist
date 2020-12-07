@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -121,7 +122,7 @@ func syncFiles() {
 
 		// File already exists, and the md5sum matches, skip to next file in loop
 		if fileMatchOnRemoteServer(localFullPath, remoteFullPath, sshClient) {
-			fmt.Println("Skipping file that already exists.")
+			log.Println("Skipping file that already exists.")
 			continue
 		}
 
@@ -130,7 +131,7 @@ func syncFiles() {
 			if !createZeroFileOnRemoteServerIfNotExists(remoteFullPath, sshClient) {
 				panic("Could not create remote empty file.")
 			}
-			fmt.Println("Creating zero file.")
+			log.Println("Creating zero file.")
 			continue
 		}
 
