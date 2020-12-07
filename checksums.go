@@ -110,7 +110,7 @@ func hashFileMD5Remote(path string, sshClient *ssh.Client) string {
 	}
 
 	// get first 32 chars
-	md5sum := output[0:31]
+	md5sum := output[0:32]
 
 	return md5sum
 }
