@@ -284,8 +284,6 @@ func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Clie
 	// Open a file
 	f, _ := os.Open(localFullPath)
 
-	//remoteFullPath = "/home/ubuntu/music-new/1/TEST.lol"
-
 	if !createDirectoryRecursiveRemote(filepath.Dir(remoteFullPath), sshClient) {
 		panic("Could not create remote directory " + filepath.Dir(remoteFullPath))
 	}
