@@ -13,8 +13,9 @@ export PATH=$PATH:/usr/local/go/bin
 export GOPATH=~/go
 go version
 
-
+go get -v -u github.com/ElliottLandsborough/auralist
 cd $GOPATH/src/github.com/ElliottLandsborough/auralist
 make deps
-make files
 nano config.yml
+make collect
+make files
