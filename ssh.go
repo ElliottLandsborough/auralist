@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/bramvdbogaerde/go-scp"
 	"golang.org/x/crypto/ssh"
@@ -276,7 +277,10 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 }
 
 func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Client) {
-	scpClient, err := scp.NewClientBySSH(sshClient)
+	// time.Duration is in nanoseconds, int64. 1 hour = 1 * 60 * 60 * 1000 * 1000 * 1000
+	var timeOut time.Duration = 1 * 60 * 60 * 1000 * 1000 * 1000
+
+	scpClient, err := scp.NewClientBySSHWithTimeout(sshClient, timeOut)
 	if err != nil {
 		log.Println("Error creating new SSH session from existing connection", err)
 	}
