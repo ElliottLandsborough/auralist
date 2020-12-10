@@ -278,7 +278,7 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 
 func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Client) {
 	// time.Duration is in nanoseconds, int64. 1 hour = 1 * 60 * 60 * 1000 * 1000 * 1000
-	var timeOut time.Duration = 1 * 60 * 60 * 1000 * 1000 * 1000
+	var timeOut time.Duration = 10 * 60 * 1000 * 1000 * 1000 // 10 mins
 
 	scpClient, err := scp.NewClientBySSHWithTimeout(sshClient, timeOut)
 	if err != nil {
