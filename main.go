@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/mackerelio/go-osstat/memory"
 )
 
 func main() {
@@ -137,6 +139,20 @@ func syncFiles() {
 
 		// File already exists on remote server in old folder, copy to new folder
 		if copyFromOldFolderIfExists(file, localFullPath, remoteFullPath, db, sshClient) {
+			continue
+		}
+
+		// Get memory stats here
+		memory, err := memory.Get()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			continue
+		}
+
+		// File is larger than 1/5 of max memory (maybe change this to larger than how much we split by?)
+		if uint64(file.FileSizeBytes) > (memory.Free / 5) {
+			// Here we would split, but I haven't implemented that yet.
+			// So continue and upload all the small files
 			continue
 		}
 
