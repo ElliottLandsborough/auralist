@@ -3,10 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 	"os"
-
-	"github.com/mackerelio/go-osstat/memory"
 )
 
 func main() {
@@ -146,36 +143,8 @@ func syncFiles() {
 			}
 		}
 
-		// Get memory stats here
-		memory, err := memory.Get()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
-			continue
-		}
-
-		// Find out how much a quarter of available ram is
-		quarterOfRamInBytes := memory.Free / 4
-
-		// Round to nearest ten megabytes
-		splitSizeInBytes := int64(math.Round(float64(quarterOfRamInBytes)/1000/1000/10) * 1000 * 1000 * 10)
-
-		// 1mb for now
-		splitSizeInBytes = 1 * 1000 * 1000
-
-		// Do we even have enough ram for this??
-		if splitSizeInBytes < 50 {
-			// Todo: this is hacky. Can probably manage memory better. Or use rsync...
-			panic("Not enough ram.")
-		}
-
-		// Does the file exceed the split size?
-		if file.FileSizeBytes > splitSizeInBytes {
-			uploadFileInChunks(localFullPath, remoteFullPath, splitSizeInBytes, sshClient)
-			continue
-		}
-
 		// If we got this far and no conditions were met, upload the file
-		uploadFile(localFullPath, remoteFullPath, file.FileSizeBytes, sshClient)
+		uploadFile(localFullPath, remoteFullPath, file, sshClient)
 	}
 }
 
