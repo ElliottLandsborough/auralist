@@ -160,7 +160,7 @@ func syncFiles() {
 		splitSizeInBytes := int64(math.Round(float64(quarterOfRamInBytes)/1000/1000/10) * 1000 * 1000 * 10)
 
 		// 1mb for now
-		splitSizeInBytes = 200 * 1000 * 1000
+		splitSizeInBytes = 1 * 1000 * 1000
 
 		// Do we even have enough ram for this??
 		if splitSizeInBytes < 50 {
