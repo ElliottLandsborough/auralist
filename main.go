@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 
 	"github.com/mackerelio/go-osstat/memory"
@@ -137,9 +138,12 @@ func syncFiles() {
 			continue
 		}
 
-		// File already exists on remote server in old folder, copy to new folder
-		if copyFromOldFolderIfExists(file, localFullPath, remoteFullPath, db, sshClient) {
-			continue
+		// Was a previous version path specified
+		if len(conf.RemoteOldPath) > 0 {
+			// File already exists on remote server in old folder, copy to new folder
+			if copyFromOldFolderIfExists(file, localFullPath, remoteFullPath, db, sshClient) {
+				continue
+			}
 		}
 
 		// Get memory stats here
@@ -149,10 +153,21 @@ func syncFiles() {
 			continue
 		}
 
-		// File is larger than 1/5 of max memory (maybe change this to larger than how much we split by?)
-		if uint64(file.FileSizeBytes) > (memory.Free / 5) {
-			// Here we would split, but I haven't implemented that yet.
-			// So continue and upload all the small files
+		// Find out how much a quarter of available ram is
+		quarterOfRamInBytes := memory.Free / 4
+
+		// Round to nearest ten megabytes
+		splitSizeInBytes := int64(math.Round(float64(quarterOfRamInBytes)/1000/1000/10) * 1000 * 1000 * 10)
+
+		// Do we even have enough ram for this??
+		if splitSizeInBytes < 50 {
+			// Todo: this is hacky. Can probably manage memory better. Or use rsync...
+			panic("Not enough ram.")
+		}
+
+		// Does the file exceed the split size?
+		if file.FileSizeBytes > splitSizeInBytes {
+			uploadFileInChunks(localFullPath, remoteFullPath, splitSizeInBytes, sshClient)
 			continue
 		}
 

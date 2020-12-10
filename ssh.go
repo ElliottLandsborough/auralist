@@ -311,3 +311,7 @@ func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Clie
 		panic(err)
 	}
 }
+
+func uploadFileInChunks(localFullPath string, remoteFullPath string, splitSizeInBytes int64, sshClient *ssh.Client) {
+	panic("Detected huge file.")
+}
