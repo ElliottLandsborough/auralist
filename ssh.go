@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -276,7 +277,7 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 	return false
 }
 
-func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Client) {
+func uploadFile(localFullPath string, remoteFullPath string, size int64, sshClient *ssh.Client) {
 	// time.Duration is in nanoseconds, int64. 1 hour = 1 * 60 * 60 * 1000 * 1000 * 1000
 	var timeOut time.Duration = 10 * 60 * 1000 * 1000 * 1000 // 10 mins
 
@@ -301,7 +302,7 @@ func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Clie
 	defer f.Close()
 
 	// Usage: CopyFile(fileReader, remotePath, permission)
-	err = scpClient.CopyFile(f, shellescape.Quote(remoteFullPath), "0644")
+	err = scpClient.Copy(f, shellescape.Quote(remoteFullPath), "0644", size)
 
 	if err != nil {
 		fmt.Println("Error while copying file ", localFullPath)
@@ -313,5 +314,28 @@ func uploadFile(localFullPath string, remoteFullPath string, sshClient *ssh.Clie
 }
 
 func uploadFileInChunks(localFullPath string, remoteFullPath string, splitSizeInBytes int64, sshClient *ssh.Client) {
-	panic("Detected huge file.")
+	f, err := os.Open(localFullPath)
+
+	if err != nil {
+		panic("Error opening file" + localFullPath)
+	}
+
+	defer f.Close()
+
+	b := make([]byte, splitSizeInBytes)
+
+	for {
+		bytesReadCount, err := f.Read(b)
+
+		if err != nil {
+			if err != io.EOF {
+				fmt.Println(err)
+			}
+
+			break
+		}
+
+		fmt.Println("bytes read: ", bytesReadCount)
+		fmt.Println("bytestream to string: ", string(b[:bytesReadCount]))
+	}
 }

@@ -159,6 +159,9 @@ func syncFiles() {
 		// Round to nearest ten megabytes
 		splitSizeInBytes := int64(math.Round(float64(quarterOfRamInBytes)/1000/1000/10) * 1000 * 1000 * 10)
 
+		// 1mb for now
+		splitSizeInBytes = 200 * 1000 * 1000
+
 		// Do we even have enough ram for this??
 		if splitSizeInBytes < 50 {
 			// Todo: this is hacky. Can probably manage memory better. Or use rsync...
@@ -172,7 +175,7 @@ func syncFiles() {
 		}
 
 		// If we got this far and no conditions were met, upload the file
-		uploadFile(localFullPath, remoteFullPath, sshClient)
+		uploadFile(localFullPath, remoteFullPath, file.FileSizeBytes, sshClient)
 	}
 }
 
