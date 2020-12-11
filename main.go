@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
@@ -106,45 +107,60 @@ func syncFiles() {
 	// Empty array of files
 	files := make([]File, 0)
 
-	// Get all files for this hostname
-	db.Where(&File{HostName: localHostName}).Find(&files)
+	limit := 10
+	offset := 0
 
-	// Get remote path from conf
-	remotePath := conf.RemotePath
+	// Loop forever
+	for {
+		// Get all files for this hostname
+		db.Where(&File{HostName: localHostName}).Find(&files).Limit(limit).Offset(offset)
 
-	// Loop through all the files
-	for _, file := range files {
-		// path to local file
-		localFullPath := file.Base + file.Path
+		// If we found anything,
+		offset += len(files)
 
-		// path to file on remote server e.g /home/user/sync/trojans/sub7.exe
-		remoteFullPath := remotePath + file.Path
+		// Get remote path from conf
+		remotePath := conf.RemotePath
 
-		// File already exists, and the md5sum matches, skip to next file in loop
-		if fileMatchOnRemoteServer(localFullPath, remoteFullPath, sshClient) {
-			log.Println("Skipping file that already exists.")
-			continue
-		}
+		// Loop through all the files
+		for _, file := range files {
+			// path to local file
+			localFullPath := file.Base + file.Path
 
-		// If file size is zero locally, just create it on remote, no need to upload or check
-		if file.FileSizeBytes == 0 {
-			if !createZeroFileOnRemoteServerIfNotExists(remoteFullPath, sshClient) {
-				panic("Could not create remote empty file.")
-			}
-			log.Println("Creating zero file.")
-			continue
-		}
+			// path to file on remote server e.g /home/user/sync/trojans/sub7.exe
+			remoteFullPath := remotePath + file.Path
 
-		// Was a previous version path specified
-		if len(conf.RemoteOldPath) > 0 {
-			// File already exists on remote server in old folder, copy to new folder
-			if copyFromOldFolderIfExists(file, localFullPath, remoteFullPath, db, sshClient) {
+			// File already exists, and the md5sum matches, skip to next file in loop
+			if fileMatchOnRemoteServer(localFullPath, remoteFullPath, sshClient) {
+				log.Println("Skipping file that already exists.")
 				continue
 			}
+
+			// If file size is zero locally, just create it on remote, no need to upload or check
+			if file.FileSizeBytes == 0 {
+				if !createZeroFileOnRemoteServerIfNotExists(remoteFullPath, sshClient) {
+					panic("Could not create remote empty file.")
+				}
+				log.Println("Creating zero file.")
+				continue
+			}
+
+			// Was a previous version path specified
+			if len(conf.RemoteOldPath) > 0 {
+				// File already exists on remote server in old folder, copy to new folder
+				if copyFromOldFolderIfExists(file, localFullPath, remoteFullPath, db, sshClient) {
+					continue
+				}
+			}
+
+			// If we got this far and no conditions were met, upload the file
+			uploadFile(localFullPath, remoteFullPath, file, sshClient)
 		}
 
-		// If we got this far and no conditions were met, upload the file
-		uploadFile(localFullPath, remoteFullPath, file, sshClient)
+		// if no files were found pause for 10 seconds and then try again
+		if len(files) == 0 {
+			log.Println("Sleeping for 10s")
+			time.Sleep(10 * time.Second)
+		}
 	}
 }
 
