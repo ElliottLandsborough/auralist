@@ -136,6 +136,9 @@ func syncFiles() {
 			// path to file on remote server e.g /home/user/sync/trojans/sub7.exe
 			remoteFullPath := remotePath + file.Path
 
+			log.Println("S: " + localFullPath)
+			log.Println("D: " + remoteFullPath)
+
 			// File already exists, and the md5sum matches, skip to next file in loop
 			if fileMatchOnRemoteServer(localFullPath, remoteFullPath, sshClient) {
 				log.Println("Skipping file that already exists.")
