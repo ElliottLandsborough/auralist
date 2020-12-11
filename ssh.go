@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -277,7 +278,7 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 	return false
 }
 
-func uploadFile(localFullPath string, remoteFullPath string, size int64, sshClient *ssh.Client) {
+func uploadFile(localFullPath string, remoteFullPath string, file File, sshClient *ssh.Client) {
 	// time.Duration is in nanoseconds, int64. 1 hour = 1 * 60 * 60 * 1000 * 1000 * 1000
 	var timeOut time.Duration = 10 * 60 * 1000 * 1000 * 1000 // 10 mins
 
@@ -301,8 +302,16 @@ func uploadFile(localFullPath string, remoteFullPath string, size int64, sshClie
 	// Close the file after it has been copied
 	defer f.Close()
 
-	// Usage: CopyFile(fileReader, remotePath, permission)
-	err = scpClient.Copy(f, shellescape.Quote(remoteFullPath), "0644", size)
+	// Define chunk size in bytes
+	var chunkSize int64 = 1 * 1000 * 1000 // 100 mb
+
+	// File is larger than chunksize
+	if file.FileSizeBytes > chunkSize {
+		uploadFileInChunks(localFullPath, remoteFullPath, file, chunkSize, sshClient)
+	} else {
+		// Usage: CopyFile(fileReader, remotePath, permission)
+		err = scpClient.Copy(f, shellescape.Quote(remoteFullPath), "0644", file.FileSizeBytes)
+	}
 
 	if err != nil {
 		fmt.Println("Error while copying file ", localFullPath)
@@ -313,7 +322,13 @@ func uploadFile(localFullPath string, remoteFullPath string, size int64, sshClie
 	}
 }
 
-func uploadFileInChunks(localFullPath string, remoteFullPath string, splitSizeInBytes int64, sshClient *ssh.Client) {
+func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, chunkSize int64, sshClient *ssh.Client) {
+	md5, err := hashFileMd5(localFullPath)
+
+	if err != nil {
+		panic(err)
+	}
+
 	f, err := os.Open(localFullPath)
 
 	if err != nil {
@@ -322,7 +337,10 @@ func uploadFileInChunks(localFullPath string, remoteFullPath string, splitSizeIn
 
 	defer f.Close()
 
-	b := make([]byte, splitSizeInBytes)
+	b := make([]byte, chunkSize)
+	chunkFiles := make([]string, 0)
+
+	var chunkCount = 0
 
 	for {
 		bytesReadCount, err := f.Read(b)
@@ -335,7 +353,74 @@ func uploadFileInChunks(localFullPath string, remoteFullPath string, splitSizeIn
 			break
 		}
 
-		fmt.Println("bytes read: ", bytesReadCount)
-		fmt.Println("bytestream to string: ", string(b[:bytesReadCount]))
+		chunk := b[:bytesReadCount]
+		path := "/tmp/auralist." + strconv.FormatInt(file.Crc32, 10) + ".part" + strconv.Itoa(chunkCount)
+		chunkFiles = append(chunkFiles, path)
+
+		fmt.Println(localFullPath)
+		fmt.Println("MD5: " + md5)
+		fmt.Println("Chunk: " + path)
+		fmt.Println("Bytes: " + strconv.Itoa(bytesReadCount))
+		writeChunkToRemoteTmpFile(chunk, bytesReadCount, path, sshClient)
+
+		chunkCount++
+	}
+
+	joinRemoteChunkFiles(chunkFiles)
+}
+
+func joinRemoteChunkFiles(chunks []string) {
+	for _, chunk := range chunks {
+		fmt.Println(chunk)
 	}
 }
+
+func writeChunkToRemoteTmpFile(chunk []byte, chunkSize int, path string, sshClient *ssh.Client) {
+	session := getSSHSession(sshClient)
+	defer session.Close()
+
+	go func() {
+		w, _ := session.StdinPipe()
+		defer w.Close()
+
+		fmt.Fprintln(w, "C0644", chunkSize, shellescape.Quote(path))
+		fmt.Fprint(w, string(chunk))
+		fmt.Fprint(w, "\x00") // transfer end with \x00
+	}()
+
+	_, err := remoteRun("/usr/bin/scp -rt "+shellescape.Quote(path), getSSHSession(sshClient))
+
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+/*
+func getSensibleFileSplitSize() int64 {
+	// Get memory stats here
+	memory, err := memory.Get()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+
+		// Could not get ram? assume 100
+		return 100
+	}
+
+	// Find out how much a quarter of available ram is
+	quarterOfRAMInBytes := memory.Free / 4
+
+	// Round to nearest ten megabytes
+	splitSizeInBytes := int64(math.Round(float64(quarterOfRAMInBytes)/1000/1000/10) * 1000 * 1000 * 10)
+
+	// 1mb for now
+	splitSizeInBytes = 1 * 1000 * 1000
+
+	// Do we even have enough ram for this??
+	if splitSizeInBytes < 50 {
+		// Todo: this is hacky. Can probably manage memory better. Or use rsync...
+		panic("Not enough ram.")
+	}
+
+	return 200
+}
+*/
