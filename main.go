@@ -104,16 +104,23 @@ func syncFiles() {
 		panic(err)
 	}
 
-	// Empty array of files
-	files := make([]File, 0)
-
 	limit := 10
 	offset := 0
 
 	// Loop forever
 	for {
+		// Empty array of files
+		files := make([]File, 0)
+
 		// Get 10 files for this hostname
 		db.Where(&File{HostName: localHostName}).Find(&files).Limit(limit).Offset(offset)
+
+		// if no files were found pause for 10 seconds and then try again
+		if len(files) == 0 {
+			log.Println("Sleeping for 10s")
+			time.Sleep(10 * time.Second)
+			continue
+		}
 
 		// If we found anything,
 		offset += len(files)
@@ -154,12 +161,6 @@ func syncFiles() {
 
 			// If we got this far and no conditions were met, upload the file
 			uploadFile(localFullPath, remoteFullPath, file, sshClient)
-		}
-
-		// if no files were found pause for 10 seconds and then try again
-		if len(files) == 0 {
-			log.Println("Sleeping for 10s")
-			time.Sleep(10 * time.Second)
 		}
 	}
 }
