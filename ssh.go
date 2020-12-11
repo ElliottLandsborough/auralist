@@ -7,10 +7,10 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +24,9 @@ import (
 func init() {
 	// Retrieve config options.
 	conf = getConf()
+
+	// Seed random numbers with nanotime
+	rand.Seed(time.Now().UnixNano())
 }
 
 // Get private key into memory
@@ -302,7 +305,7 @@ func uploadFile(localFullPath string, remoteFullPath string, file File, sshClien
 	defer f.Close()
 
 	// Define chunk size in bytes
-	var chunkSize int64 = 200 * 1000 * 1000 // 200 mb
+	var chunkSize int64 = 100 * 1000 * 1000 // 200 mb
 
 	// File is larger than chunksize
 	if file.FileSizeBytes > chunkSize {
@@ -321,6 +324,10 @@ func uploadFile(localFullPath string, remoteFullPath string, file File, sshClien
 
 func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, chunkSize int64, sshClient *ssh.Client) bool {
 	md5, err := hashFileMd5(localFullPath)
+
+	random64 := randSeq(64)
+
+	pathPrefix := "/tmp/auralist.tmp." + random64 + ".part"
 
 	if err != nil {
 		panic(err)
@@ -350,8 +357,9 @@ func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, 
 			break
 		}
 
+		// generate filenames that end in '000000001', '000000002', ...
 		chunk := b[:bytesReadCount]
-		path := "/tmp/auralist." + strconv.FormatInt(file.Crc32, 10) + ".part" + strconv.Itoa(chunkCount)
+		path := pathPrefix + fmt.Sprintf("%09d", chunkCount)
 		chunks = append(chunks, path)
 
 		err = writeChunkToRemoteTmpFile(chunk, bytesReadCount, path, sshClient)
@@ -363,7 +371,7 @@ func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, 
 		chunkCount++
 	}
 
-	err = joinRemoteChunks(chunks, remoteFullPath, sshClient)
+	err = joinRemoteChunks(pathPrefix, remoteFullPath, sshClient)
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -379,14 +387,16 @@ func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, 
 		return true
 	}
 
+	log.Println("Chunked upload error `" + filepath.Base(remoteFullPath) + "`")
+
 	return false
 }
 
-func joinRemoteChunks(chunks []string, remoteFullPath string, sshClient *ssh.Client) error {
+func joinRemoteChunks(pathPrefix string, remoteFullPath string, sshClient *ssh.Client) error {
 	session := getSSHSession(sshClient)
 	defer session.Close()
 
-	command := "cat " + strings.Join(chunks[:], " ") + " > " + shellescape.Quote(remoteFullPath)
+	command := "cat " + pathPrefix + "* > " + shellescape.Quote(remoteFullPath)
 
 	_, err := remoteRun(command, session)
 
@@ -433,4 +443,14 @@ func writeChunkToRemoteTmpFile(chunk []byte, chunkSize int, path string, sshClie
 	}
 
 	return nil
+}
+
+func randSeq(n uint) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }
