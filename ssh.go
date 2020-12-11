@@ -268,10 +268,11 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 			// Create directories on remote server
 			createDirectoryRecursiveRemote(remoteFullPath, sshClient)
 			// Copy file one remote from old location to new location
-			if copyFileRemote(remoteOldFullPath, remoteFullPath, sshClient) {
-				// Copy success
-				return true
+			if !copyFileRemote(remoteOldFullPath, remoteFullPath, sshClient) {
+				panic("Remote copy failed.")
 			}
+			// Copy success, move to next file
+			return true
 		}
 	}
 	return false
