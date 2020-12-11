@@ -112,7 +112,7 @@ func syncFiles() {
 
 	// Loop forever
 	for {
-		// Get all files for this hostname
+		// Get 10 files for this hostname
 		db.Where(&File{HostName: localHostName}).Find(&files).Limit(limit).Offset(offset)
 
 		// If we found anything,
