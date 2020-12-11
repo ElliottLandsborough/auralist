@@ -305,7 +305,7 @@ func uploadFile(localFullPath string, remoteFullPath string, file File, sshClien
 	defer f.Close()
 
 	// Define chunk size in bytes
-	var chunkSize int64 = 100 * 1000 * 1000 // 200 mb
+	var chunkSize int64 = 100 * 1000 * 1000 // 100 mb
 
 	// File is larger than chunksize
 	if file.FileSizeBytes > chunkSize {
