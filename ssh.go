@@ -303,26 +303,24 @@ func uploadFile(localFullPath string, remoteFullPath string, file File, sshClien
 	defer f.Close()
 
 	// Define chunk size in bytes
-	var chunkSize int64 = 1 * 1000 * 1000 // 100 mb
+	var chunkSize int64 = 200 * 1000 * 1000 // 200 mb
 
 	// File is larger than chunksize
 	if file.FileSizeBytes > chunkSize {
-		uploadFileInChunks(localFullPath, remoteFullPath, file, chunkSize, sshClient)
+		if !uploadFileInChunks(localFullPath, remoteFullPath, file, chunkSize, sshClient) {
+			fmt.Println("Error while copying chunked file ", localFullPath)
+		}
 	} else {
 		// Usage: CopyFile(fileReader, remotePath, permission)
 		err = scpClient.Copy(f, shellescape.Quote(remoteFullPath), "0644", file.FileSizeBytes)
-	}
 
-	if err != nil {
-		fmt.Println("Error while copying file ", localFullPath)
-	}
-
-	if err != nil {
-		panic(err)
+		if err != nil {
+			fmt.Println("Error while copying file ", localFullPath)
+		}
 	}
 }
 
-func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, chunkSize int64, sshClient *ssh.Client) {
+func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, chunkSize int64, sshClient *ssh.Client) bool {
 	md5, err := hashFileMd5(localFullPath)
 
 	if err != nil {
@@ -338,7 +336,7 @@ func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, 
 	defer f.Close()
 
 	b := make([]byte, chunkSize)
-	chunkFiles := make([]string, 0)
+	chunks := make([]string, 0)
 
 	var chunkCount = 0
 
@@ -355,29 +353,72 @@ func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, 
 
 		chunk := b[:bytesReadCount]
 		path := "/tmp/auralist." + strconv.FormatInt(file.Crc32, 10) + ".part" + strconv.Itoa(chunkCount)
-		chunkFiles = append(chunkFiles, path)
+		chunks = append(chunks, path)
 
-		fmt.Println(localFullPath)
-		fmt.Println("MD5: " + md5)
-		fmt.Println("Chunk: " + path)
-		fmt.Println("Bytes: " + strconv.Itoa(bytesReadCount))
-		writeChunkToRemoteTmpFile(chunk, bytesReadCount, path, sshClient)
+		err = writeChunkToRemoteTmpFile(chunk, bytesReadCount, path, sshClient)
+
+		if err != nil {
+			panic(err)
+		}
 
 		chunkCount++
 	}
 
-	joinRemoteChunkFiles(chunkFiles)
+	err = joinRemoteChunks(chunks, remoteFullPath, sshClient)
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	err = deleteRemoteChunks(chunks, sshClient)
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	if md5 == hashFileMD5Remote(remoteFullPath, sshClient) {
+		return true
+	}
+
+	return false
 }
 
-func joinRemoteChunkFiles(chunks []string) {
-	for _, chunk := range chunks {
-		fmt.Println(chunk)
+func joinRemoteChunks(chunks []string, remoteFullPath string, sshClient *ssh.Client) error {
+	session := getSSHSession(sshClient)
+	defer session.Close()
+
+	command := "cat " + strings.Join(chunks[:], " ") + " > " + shellescape.Quote(remoteFullPath)
+
+	_, err := remoteRun(command, session)
+
+	if err != nil {
+		return err
 	}
+
+	return nil
+}
+
+func deleteRemoteChunks(chunks []string, sshClient *ssh.Client) error {
+	for _, chunk := range chunks {
+		session := getSSHSession(sshClient)
+		defer session.Close()
+
+		command := "rm " + shellescape.Quote(chunk)
+
+		_, err := remoteRun(command, session)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func writeChunkToRemoteTmpFile(chunk []byte, chunkSize int, path string, sshClient *ssh.Client) error {
 	session := getSSHSession(sshClient)
 	defer session.Close()
+
 	go func() {
 		w, _ := session.StdinPipe()
 		defer w.Close()
@@ -394,33 +435,3 @@ func writeChunkToRemoteTmpFile(chunk []byte, chunkSize int, path string, sshClie
 
 	return nil
 }
-
-/*
-func getSensibleFileSplitSize() int64 {
-	// Get memory stats here
-	memory, err := memory.Get()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-
-		// Could not get ram? assume 100
-		return 100
-	}
-
-	// Find out how much a quarter of available ram is
-	quarterOfRAMInBytes := memory.Free / 4
-
-	// Round to nearest ten megabytes
-	splitSizeInBytes := int64(math.Round(float64(quarterOfRAMInBytes)/1000/1000/10) * 1000 * 1000 * 10)
-
-	// 1mb for now
-	splitSizeInBytes = 1 * 1000 * 1000
-
-	// Do we even have enough ram for this??
-	if splitSizeInBytes < 50 {
-		// Todo: this is hacky. Can probably manage memory better. Or use rsync...
-		panic("Not enough ram.")
-	}
-
-	return 200
-}
-*/
