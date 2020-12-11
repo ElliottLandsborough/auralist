@@ -375,24 +375,24 @@ func joinRemoteChunkFiles(chunks []string) {
 	}
 }
 
-func writeChunkToRemoteTmpFile(chunk []byte, chunkSize int, path string, sshClient *ssh.Client) {
+func writeChunkToRemoteTmpFile(chunk []byte, chunkSize int, path string, sshClient *ssh.Client) error {
 	session := getSSHSession(sshClient)
 	defer session.Close()
-
 	go func() {
 		w, _ := session.StdinPipe()
 		defer w.Close()
-
-		fmt.Fprintln(w, "C0644", chunkSize, shellescape.Quote(path))
+		fmt.Fprintln(w, "C0644", chunkSize, filepath.Base(path))
 		fmt.Fprint(w, string(chunk))
-		fmt.Fprint(w, "\x00") // transfer end with \x00
+		fmt.Fprint(w, "\x00")
 	}()
 
-	_, err := remoteRun("/usr/bin/scp -rt "+shellescape.Quote(path), getSSHSession(sshClient))
+	_, err := remoteRun("/usr/bin/scp -rt "+path, session)
 
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
+
+	return nil
 }
 
 /*
