@@ -180,7 +180,7 @@ func syncFiles() {
 			}
 
 			// If we got this far and no conditions were met, upload the file
-			uploadFile(localFullPath, remoteFullPath, file)
+			uploadFile(localFullPath, remoteFullPath, file, db)
 		}
 	}
 }

@@ -66,3 +66,6 @@ DELETE FROM `files` WHERE `path` LIKE '%__MACOSX%'
 ```sql
 SELECT `path` FROM `files` WHERE `path` LIKE "._%"
 ```
+
+todo:
+cleanup all temp files per iteration

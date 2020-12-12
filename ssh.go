@@ -329,7 +329,7 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 	return false, nil
 }
 
-func uploadFile(localFullPath string, remoteFullPath string, file File) (bool, error) {
+func uploadFile(localFullPath string, remoteFullPath string, file File, db *gorm.DB) (bool, error) {
 	// time.Duration is in nanoseconds, int64. 1 hour = 1 * 60 * 60 * 1000 * 1000 * 1000
 	var timeOut time.Duration = 10 * 60 * 1000 * 1000 * 1000 // 10 mins
 
@@ -377,7 +377,7 @@ func uploadFile(localFullPath string, remoteFullPath string, file File) (bool, e
 		return false, err
 	}
 
-	return fileMatchOnRemoteServer(localFullPath, remoteFullPath, file)
+	return fileMatchOnRemoteServer(localFullPath, remoteFullPath, file, db)
 }
 
 func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, chunkSize int64) (bool, error) {
