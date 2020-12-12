@@ -111,7 +111,7 @@ func syncFiles() {
 		files := make([]File, 0)
 
 		// Get 10 files for this hostname
-		db.Where(&File{HostName: localHostName}).Find(&files).Limit(limit).Offset(offset)
+		db.Where(&File{HostName: localHostName, Md5: ""}).Find(&files).Limit(limit).Offset(offset)
 
 		// if no files were found pause for 10 seconds and then try again
 		if len(files) == 0 {
@@ -138,7 +138,7 @@ func syncFiles() {
 			log.Println("S: " + localFullPath)
 			log.Println("D: " + remoteFullPath)
 
-			fm, err := fileMatchOnRemoteServer(localFullPath, remoteFullPath)
+			fm, err := fileMatchOnRemoteServer(localFullPath, remoteFullPath, file, db)
 
 			if err != nil {
 				log.Println("Error Getting match between local and remote", err)

@@ -26,6 +26,8 @@ type File struct {
 	HostName           string `gorm:"index;size:256"` // max linux hostname size as per manpage
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
+	Md5                string `gorm:"index;size:32"`
+	VerifiedAt         time.Time
 }
 
 // Handles paths inputted into it. Rudimentary queue system

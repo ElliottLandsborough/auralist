@@ -166,7 +166,7 @@ func fileExistsOnRemoteServer(path string) bool {
 	return true
 }
 
-func fileMatchOnRemoteServer(localFullPath string, remoteFullPath string) (bool, error) {
+func fileMatchOnRemoteServer(localFullPath string, remoteFullPath string, file File, db *gorm.DB) (bool, error) {
 	// Check remote location for file, if it exists already
 	if fileExistsOnRemoteServer(remoteFullPath) {
 		// Get an md5 hash of it
@@ -184,6 +184,9 @@ func fileMatchOnRemoteServer(localFullPath string, remoteFullPath string) (bool,
 
 		// If local md5 matches remote md5
 		if localMD5 == remoteMD5 {
+			file.Md5 = remoteMD5
+			file.VerifiedAt = time.Now()
+			db.Save(&file)
 			return true, nil
 		}
 	}
@@ -304,7 +307,7 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 		// generate path to file in old folder
 		remoteOldFullPath := conf.RemoteOldPath + potentialDuplicate.Path
 
-		fm, err := fileMatchOnRemoteServer(localFullPath, remoteOldFullPath)
+		fm, err := fileMatchOnRemoteServer(localFullPath, remoteOldFullPath, file, db)
 
 		if err != nil {
 			log.Println("Error Getting match between local and remote")
@@ -374,7 +377,7 @@ func uploadFile(localFullPath string, remoteFullPath string, file File) (bool, e
 		return false, err
 	}
 
-	return fileMatchOnRemoteServer(localFullPath, remoteFullPath)
+	return fileMatchOnRemoteServer(localFullPath, remoteFullPath, file)
 }
 
 func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, chunkSize int64) (bool, error) {
