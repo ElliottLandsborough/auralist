@@ -32,7 +32,7 @@ func readPaths(cacheFile string) {
 	})
 
 	if e != nil {
-		panic(e)
+		panic(e) // filePath walk issue...
 	}
 }
 

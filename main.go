@@ -50,7 +50,7 @@ func processPaths() {
 	db, e := getDB()
 
 	if e != nil {
-		panic(e)
+		panic(e) // could not get database...
 	}
 
 	// migrate
@@ -64,7 +64,7 @@ func parseTags() {
 	db, e := getDB()
 
 	if e != nil {
-		panic(e)
+		panic(e) // could not get database...
 	}
 
 	deleteAllTags(db)
@@ -78,7 +78,7 @@ func parseTags() {
 	rows, e := db.Model(&File{}).Rows()
 
 	if e != nil {
-		panic(e)
+		panic(e) // could not create database model...
 	}
 
 	for rows.Next() {
@@ -92,16 +92,14 @@ func syncFiles() {
 	db, e := getDB()
 
 	if e != nil {
-		panic(e)
+		panic(e) // could not get database
 	}
-
-	// Connect to server
-	sshClient := getSSHClient()
 
 	// Get local hostname
 	localHostName, err := os.Hostname()
+
 	if err != nil {
-		panic(err)
+		panic(err) // could not get local hostname
 	}
 
 	limit := 10
@@ -117,19 +115,20 @@ func syncFiles() {
 
 		// if no files were found pause for 10 seconds and then try again
 		if len(files) == 0 {
+			log.Println("No files found in db")
 			log.Println("Sleeping for 10s")
 			time.Sleep(10 * time.Second)
 			continue
 		}
-
-		// If we found anything,
-		offset += len(files)
 
 		// Get remote path from conf
 		remotePath := conf.RemotePath
 
 		// Loop through all the files
 		for _, file := range files {
+			// Assuming we dont remove this at the end, skip to the next file
+			offset++
+
 			// path to local file
 			localFullPath := file.Base + file.Path
 
@@ -139,31 +138,49 @@ func syncFiles() {
 			log.Println("S: " + localFullPath)
 			log.Println("D: " + remoteFullPath)
 
+			fm, err := fileMatchOnRemoteServer(localFullPath, remoteFullPath)
+
+			if err != nil {
+				log.Println("Error Getting match between local and remote", err)
+			}
+
 			// File already exists, and the md5sum matches, skip to next file in loop
-			if fileMatchOnRemoteServer(localFullPath, remoteFullPath, sshClient) {
+			if fm {
 				log.Println("Skipping file that already exists.")
 				continue
 			}
 
 			// If file size is zero locally, just create it on remote, no need to upload or check
 			if file.FileSizeBytes == 0 {
-				if !createZeroFileOnRemoteServerIfNotExists(remoteFullPath, sshClient) {
-					panic("Could not create remote empty file.")
+				if createZeroFileOnRemoteServerIfNotExists(remoteFullPath) {
+					log.Println("Creating zero file.")
+					continue
 				}
-				log.Println("Creating zero file.")
-				continue
+
+				log.Println("Error creating zero file.")
 			}
 
 			// Was a previous version path specified
 			if len(conf.RemoteOldPath) > 0 {
 				// File already exists on remote server in old folder, copy to new folder
-				if copyFromOldFolderIfExists(file, localFullPath, remoteFullPath, db, sshClient) {
+				copy, err := copyFromOldFolderIfExists(file, localFullPath, remoteFullPath, db)
+
+				if err != nil {
+					log.Println("Error copying from old folder. " + err.Error())
+				}
+
+				if !copy {
+					log.Println("No match on remote server")
+				}
+
+				if copy {
 					continue
 				}
+
 			}
 
 			// If we got this far and no conditions were met, upload the file
-			uploadFile(localFullPath, remoteFullPath, file, sshClient)
+			uploadFile(localFullPath, remoteFullPath, file)
 		}
 	}
 }

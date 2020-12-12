@@ -28,13 +28,13 @@ func parseTagsToDb(file File, db *gorm.DB) {
 	f, err := os.Open(file.Path)
 
 	if err != nil {
-		panic(err)
+		panic(err) // deal with this soon...
 	}
 
 	sum, err := tag.Sum(f)
 
 	if err != nil {
-		panic(err)
+		panic(err) // deal with this soon...
 	}
 
 	// try tag read method 1

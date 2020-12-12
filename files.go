@@ -46,7 +46,7 @@ func handlePaths(paths []string, db *gorm.DB) error {
 			size, err := getFileSizeInBytes(path)
 
 			if err != nil {
-				panic(err)
+				panic(err) // handlepaths: could not get file size
 			}
 
 			// Add size to combined size
@@ -87,7 +87,7 @@ func fileIsInDatabase(path string, db *gorm.DB) bool {
 	HostName, err := os.Hostname()
 
 	if err != nil {
-		panic(err)
+		panic(err) // could not get local hostname
 	}
 
 	file := File{}
@@ -124,7 +124,7 @@ func processFilesAsync(paths []PathInfo) []File {
 			file, err := createFile(pi)
 
 			if err != nil {
-				panic(err)
+				panic(err) // handlePaths: file info issue
 			}
 
 			fmt.Printf("Processing %s\n", pi.Path)
@@ -164,7 +164,7 @@ func createFile(pi PathInfo) (File, error) {
 	HostName, err := os.Hostname()
 
 	if err != nil {
-		panic(err)
+		panic(err) // could not get local hostname
 	}
 
 	file := File{

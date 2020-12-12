@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/kalafut/imohash"
 	"github.com/vcaesar/murmur"
-	"golang.org/x/crypto/ssh"
 	"gopkg.in/alessio/shellescape.v1"
 )
 
@@ -94,8 +94,9 @@ func HashStringMd5(text string) string {
 }
 
 // hashFileMd5Remote gets the md5 hash of a file on the other end of an ssh connection
-func hashFileMD5Remote(path string, sshClient *ssh.Client) string {
-	session := getSSHSession(sshClient)
+func hashFileMD5Remote(path string) (string, error) {
+	session := getSSHSession()
+
 	defer session.Close()
 
 	command := "/usr/bin/md5sum -z " + shellescape.Quote(path)
@@ -103,22 +104,23 @@ func hashFileMD5Remote(path string, sshClient *ssh.Client) string {
 	output, err := remoteRun(command, session)
 
 	if len(output) == 0 {
-		panic("MD5 failed.")
+		return "", errors.New("md5 length is zero")
 	}
 
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	// get first 32 chars
 	md5sum := output[0:32]
 
-	return md5sum
+	return md5sum, nil
 }
 
 // hashFileSHA1Remote gets the sha1 hash of a file on the other end of an ssh connection
-func hashFileSHA1Remote(path string, sshClient *ssh.Client) string {
-	session := getSSHSession(sshClient)
+func hashFileSHA1Remote(path string) (string, error) {
+	session := getSSHSession()
+
 	defer session.Close()
 
 	command := "/usr/bin/sha1sum -z " + shellescape.Quote(path)
@@ -126,15 +128,15 @@ func hashFileSHA1Remote(path string, sshClient *ssh.Client) string {
 	output, err := remoteRun(command, session)
 
 	if len(output) == 0 {
-		panic("SHA1 failed.")
+		return "", errors.New("sha length is zero")
 	}
 
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	// get first 32 chars
 	sha1sum := output[0:39]
 
-	return sha1sum
+	return sha1sum, nil
 }

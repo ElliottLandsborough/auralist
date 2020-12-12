@@ -20,6 +20,10 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	sshClient *ssh.Client
+)
+
 // Initialization routine.
 func init() {
 	// Retrieve config options.
@@ -72,11 +76,34 @@ func trustedHostKeyCallback(trustedKey string) ssh.HostKeyCallback {
 	}
 }
 
-func getSSHClient() *ssh.Client {
+func waitForSSHClient() {
+	for {
+		log.Println("Connecting...")
+		// Connect to server
+		client, err := getSSHClient()
+
+		if err != nil {
+			log.Println("SSH Dial failed")
+			log.Println("Sleeping for 10s")
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		log.Println("Connected!")
+
+		sshClient = client
+
+		break
+	}
+
+}
+
+func getSSHClient() (*ssh.Client, error) {
 	server := conf.SSHServer + ":" + conf.SSHPort
 	user := conf.SSHUser
 
 	signer, _ := ssh.ParsePrivateKey(getPrivateKey())
+
 	clientConfig := &ssh.ClientConfig{
 		User: user,
 		Auth: []ssh.AuthMethod{
@@ -86,18 +113,24 @@ func getSSHClient() *ssh.Client {
 	}
 
 	client, err := ssh.Dial("tcp", server, clientConfig)
+
 	if err != nil {
-		panic("Failed to dial: " + err.Error())
+		log.Println("Failed to dial: " + err.Error())
+		return nil, err
 	}
 
-	return client
+	return client, nil
 }
 
-func getSSHSession(client *ssh.Client) *ssh.Session {
-	session, err := client.NewSession()
+// Will keep trying forever
+func getSSHSession() *ssh.Session {
+	// try to get new session
+	session, err := sshClient.NewSession()
 
 	if err != nil {
-		panic("Failed to create session: " + err.Error())
+		log.Println("Failed to create session: " + err.Error())
+
+		waitForSSHClient()
 	}
 
 	return session
@@ -116,8 +149,8 @@ func remoteRun(command string, session *ssh.Session) (string, error) {
 }
 
 //
-func fileExistsOnRemoteServer(path string, sshClient *ssh.Client) bool {
-	session := getSSHSession(sshClient)
+func fileExistsOnRemoteServer(path string) bool {
+	session := getSSHSession()
 	defer session.Close()
 
 	command := "test -f " + shellescape.Quote(path)
@@ -133,30 +166,34 @@ func fileExistsOnRemoteServer(path string, sshClient *ssh.Client) bool {
 	return true
 }
 
-func fileMatchOnRemoteServer(localFullPath string, remoteFullPath string, sshClient *ssh.Client) bool {
+func fileMatchOnRemoteServer(localFullPath string, remoteFullPath string) (bool, error) {
 	// Check remote location for file, if it exists already
-	if fileExistsOnRemoteServer(remoteFullPath, sshClient) {
+	if fileExistsOnRemoteServer(remoteFullPath) {
 		// Get an md5 hash of it
-		localMd5, err := hashFileMd5(localFullPath)
+		localMD5, err := hashFileMd5(localFullPath)
 
 		if err != nil {
-			panic(err)
+			return false, err
 		}
 
-		remoteMd5 := hashFileMD5Remote(remoteFullPath, sshClient)
+		remoteMD5, err := hashFileMD5Remote(remoteFullPath)
+
+		if err != nil {
+			return false, err
+		}
 
 		// If local md5 matches remote md5
-		if localMd5 == remoteMd5 {
-			return true
+		if localMD5 == remoteMD5 {
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // recursively create directories required
-func createDirectoryRecursiveRemote(path string, sshClient *ssh.Client) bool {
-	session := getSSHSession(sshClient)
+func createDirectoryRecursiveRemote(path string) bool {
+	session := getSSHSession()
 	defer session.Close()
 
 	command := "mkdir -p " + shellescape.Quote(path)
@@ -173,8 +210,8 @@ func createDirectoryRecursiveRemote(path string, sshClient *ssh.Client) bool {
 }
 
 // Check if directory exists on remote server
-func directoryExistsRemote(path string, sshClient *ssh.Client) bool {
-	session := getSSHSession(sshClient)
+func directoryExistsRemote(path string) bool {
+	session := getSSHSession()
 	defer session.Close()
 
 	command := "test -d " + shellescape.Quote(path)
@@ -191,8 +228,8 @@ func directoryExistsRemote(path string, sshClient *ssh.Client) bool {
 }
 
 // Create zero-byte file
-func createEmptyFileRemote(path string, sshClient *ssh.Client) bool {
-	session := getSSHSession(sshClient)
+func createEmptyFileRemote(path string) bool {
+	session := getSSHSession()
 	defer session.Close()
 
 	command := "touch " + shellescape.Quote(path)
@@ -208,18 +245,18 @@ func createEmptyFileRemote(path string, sshClient *ssh.Client) bool {
 	return true
 }
 
-func createZeroFileOnRemoteServerIfNotExists(remoteFullPath string, sshClient *ssh.Client) bool {
+func createZeroFileOnRemoteServerIfNotExists(remoteFullPath string) bool {
 	// Check remote location for file, if it does not exist
-	if !fileExistsOnRemoteServer(remoteFullPath, sshClient) {
+	if !fileExistsOnRemoteServer(remoteFullPath) {
 		// Check if directory already exists
-		if directoryExistsRemote(filepath.Dir(remoteFullPath), sshClient) {
-			if createEmptyFileRemote(remoteFullPath, sshClient) {
+		if directoryExistsRemote(filepath.Dir(remoteFullPath)) {
+			if createEmptyFileRemote(remoteFullPath) {
 				return true
 			}
 		}
 		// Try to create directories
-		if createDirectoryRecursiveRemote(filepath.Dir(remoteFullPath), sshClient) {
-			if createEmptyFileRemote(remoteFullPath, sshClient) {
+		if createDirectoryRecursiveRemote(filepath.Dir(remoteFullPath)) {
+			if createEmptyFileRemote(remoteFullPath) {
 				return true
 			}
 		}
@@ -228,8 +265,8 @@ func createZeroFileOnRemoteServerIfNotExists(remoteFullPath string, sshClient *s
 	return false
 }
 
-func copyFileRemote(source string, destination string, sshClient *ssh.Client) bool {
-	session := getSSHSession(sshClient)
+func copyFileRemote(source string, destination string) bool {
+	session := getSSHSession()
 	defer session.Close()
 
 	command := "cp " + shellescape.Quote(source) + " " + shellescape.Quote(destination)
@@ -245,12 +282,13 @@ func copyFileRemote(source string, destination string, sshClient *ssh.Client) bo
 	return true
 }
 
-func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath string, db *gorm.DB, sshClient *ssh.Client) bool {
+func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath string, db *gorm.DB) (bool, error) {
 	// Get remote hostname
-	remoteHostName, err := remoteRun("hostname", getSSHSession(sshClient))
+	remoteHostName, err := remoteRun("hostname", getSSHSession())
 
 	if err != nil {
-		panic("Could not get local hostname")
+		log.Println("Could not get remote hostname.")
+		return false, err
 	}
 
 	// Empty file
@@ -266,21 +304,29 @@ func copyFromOldFolderIfExists(file File, localFullPath string, remoteFullPath s
 		// generate path to file in old folder
 		remoteOldFullPath := conf.RemoteOldPath + potentialDuplicate.Path
 
+		fm, err := fileMatchOnRemoteServer(localFullPath, remoteOldFullPath)
+
+		if err != nil {
+			log.Println("Error Getting match between local and remote")
+			return false, err
+		}
+
 		// Does local md5 match remote old path md5?
-		if fileMatchOnRemoteServer(localFullPath, remoteOldFullPath, sshClient) {
+		if fm {
 			// Create directories on remote server
-			createDirectoryRecursiveRemote(remoteFullPath, sshClient)
+			createDirectoryRecursiveRemote(remoteFullPath)
 			// Copy file one remote from old location to new location
-			if copyFileRemote(remoteOldFullPath, remoteFullPath, sshClient) {
+			if copyFileRemote(remoteOldFullPath, remoteFullPath) {
 				// Copy success
-				return true
+				return true, nil
 			}
 		}
 	}
-	return false
+
+	return false, nil
 }
 
-func uploadFile(localFullPath string, remoteFullPath string, file File, sshClient *ssh.Client) {
+func uploadFile(localFullPath string, remoteFullPath string, file File) (bool, error) {
 	// time.Duration is in nanoseconds, int64. 1 hour = 1 * 60 * 60 * 1000 * 1000 * 1000
 	var timeOut time.Duration = 10 * 60 * 1000 * 1000 * 1000 // 10 mins
 
@@ -292,8 +338,10 @@ func uploadFile(localFullPath string, remoteFullPath string, file File, sshClien
 	// Open a file
 	f, _ := os.Open(localFullPath)
 
-	if !createDirectoryRecursiveRemote(filepath.Dir(remoteFullPath), sshClient) {
-		panic("Could not create remote directory " + filepath.Dir(remoteFullPath))
+	if !createDirectoryRecursiveRemote(filepath.Dir(remoteFullPath)) {
+		log.Println("Could not create remote directory " + filepath.Dir(remoteFullPath))
+
+		return false, nil
 	}
 
 	log.Println("Uploading `" + filepath.Base(remoteFullPath) + "`")
@@ -309,34 +357,36 @@ func uploadFile(localFullPath string, remoteFullPath string, file File, sshClien
 
 	// File is larger than chunksize
 	if file.FileSizeBytes > chunkSize {
-		if !uploadFileInChunks(localFullPath, remoteFullPath, file, chunkSize, sshClient) {
-			fmt.Println("Error while copying chunked file ", localFullPath)
+		upload, err := uploadFileInChunks(localFullPath, remoteFullPath, file, chunkSize)
+		if upload {
+			return true, nil
 		}
-	} else {
-		// Usage: CopyFile(fileReader, remotePath, permission)
-		err = scpClient.Copy(f, shellescape.Quote(remoteFullPath), "0644", file.FileSizeBytes)
 
-		if err != nil {
-			fmt.Println("Error while copying file ", localFullPath)
-		}
+		log.Println("Error while uploading chunked file ", localFullPath)
+		return false, err
 	}
+
+	// Usage: CopyFile(fileReader, remotePath, permission)
+	err = scpClient.Copy(f, shellescape.Quote(remoteFullPath), "0644", file.FileSizeBytes)
+
+	if err != nil {
+		fmt.Println("Error while uploading whole file ", localFullPath)
+		return false, err
+	}
+
+	return fileMatchOnRemoteServer(localFullPath, remoteFullPath)
 }
 
-func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, chunkSize int64, sshClient *ssh.Client) bool {
-	md5, err := hashFileMd5(localFullPath)
-
+func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, chunkSize int64) (bool, error) {
 	random64 := randSeq(64)
 
 	pathPrefix := "/tmp/auralist.tmp." + random64 + ".part"
 
-	if err != nil {
-		panic(err)
-	}
-
 	f, err := os.Open(localFullPath)
 
 	if err != nil {
-		panic("Error opening file" + localFullPath)
+		log.Println("Error opening local file during chunked upload: " + localFullPath)
+		return false, err
 	}
 
 	defer f.Close()
@@ -362,38 +412,34 @@ func uploadFileInChunks(localFullPath string, remoteFullPath string, file File, 
 		path := pathPrefix + fmt.Sprintf("%09d", chunkCount)
 		chunks = append(chunks, path)
 
-		err = writeChunkToRemoteTmpFile(chunk, bytesReadCount, path, sshClient)
+		err = writeChunkToRemoteTmpFile(chunk, bytesReadCount, path)
 
 		if err != nil {
-			panic(err)
+			log.Println("Error writing remote chunk")
+			return false, err
 		}
 
 		chunkCount++
 	}
 
-	err = joinRemoteChunks(pathPrefix, remoteFullPath, sshClient)
+	err = joinRemoteChunks(pathPrefix, remoteFullPath)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println("Error joining remote chunks")
+		return false, err
 	}
 
-	err = deleteRemoteChunks(chunks, sshClient)
+	err = deleteRemoteChunks(chunks)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println("Error deleting remote chunks: " + err.Error())
 	}
 
-	if md5 == hashFileMD5Remote(remoteFullPath, sshClient) {
-		return true
-	}
-
-	log.Println("Chunked upload error `" + filepath.Base(remoteFullPath) + "`")
-
-	return false
+	return true, nil
 }
 
-func joinRemoteChunks(pathPrefix string, remoteFullPath string, sshClient *ssh.Client) error {
-	session := getSSHSession(sshClient)
+func joinRemoteChunks(pathPrefix string, remoteFullPath string) error {
+	session := getSSHSession()
 	defer session.Close()
 
 	command := "cat " + pathPrefix + "* > " + shellescape.Quote(remoteFullPath)
@@ -407,9 +453,9 @@ func joinRemoteChunks(pathPrefix string, remoteFullPath string, sshClient *ssh.C
 	return nil
 }
 
-func deleteRemoteChunks(chunks []string, sshClient *ssh.Client) error {
+func deleteRemoteChunks(chunks []string) error {
 	for _, chunk := range chunks {
-		session := getSSHSession(sshClient)
+		session := getSSHSession()
 		defer session.Close()
 
 		command := "rm " + shellescape.Quote(chunk)
@@ -424,8 +470,8 @@ func deleteRemoteChunks(chunks []string, sshClient *ssh.Client) error {
 	return nil
 }
 
-func writeChunkToRemoteTmpFile(chunk []byte, chunkSize int, path string, sshClient *ssh.Client) error {
-	session := getSSHSession(sshClient)
+func writeChunkToRemoteTmpFile(chunk []byte, chunkSize int, path string) error {
+	session := getSSHSession()
 	defer session.Close()
 
 	go func() {
