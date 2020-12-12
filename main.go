@@ -116,7 +116,7 @@ func syncFiles() {
 		files := make([]File, 0)
 
 		// Get 10 files for this hostname
-		db.Where(&File{HostName: localHostName, Md5: ""}).Find(&files).Limit(limit).Offset(offset)
+		db.Where(&File{HostName: localHostName}).Where("md5 = ?", "").Find(&files).Limit(limit).Offset(offset)
 
 		// if no files were found pause for 10 seconds and then try again
 		if len(files) == 0 {
