@@ -97,6 +97,9 @@ func syncFiles() {
 		panic(e) // could not get database
 	}
 
+	// migrate
+	db.AutoMigrate(&File{})
+
 	// Get local hostname
 	localHostName, err := os.Hostname()
 
