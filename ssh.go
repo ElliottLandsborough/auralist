@@ -76,7 +76,35 @@ func trustedHostKeyCallback(trustedKey string) ssh.HostKeyCallback {
 	}
 }
 
+func getSSHClient() (*ssh.Client, error) {
+	server := conf.SSHServer + ":" + conf.SSHPort
+	user := conf.SSHUser
+
+	signer, _ := ssh.ParsePrivateKey(getPrivateKey())
+
+	clientConfig := &ssh.ClientConfig{
+		User: user,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: trustedHostKeyCallback(conf.SSHHostKey)}
+
+	client, err := ssh.Dial("tcp", server, clientConfig)
+
+	if err != nil {
+		log.Println("Failed to dial: " + err.Error())
+		return nil, err
+	}
+
+	return client, nil
+}
+
 func waitForSSHClient() {
+	// we have already connnected, no need to try again
+	if sshClient != nil {
+		return
+	}
+
 	for {
 		log.Println("Connecting...")
 		// Connect to server
@@ -95,45 +123,40 @@ func waitForSSHClient() {
 
 		break
 	}
-
-}
-
-func getSSHClient() (*ssh.Client, error) {
-	server := conf.SSHServer + ":" + conf.SSHPort
-	user := conf.SSHUser
-
-	signer, _ := ssh.ParsePrivateKey(getPrivateKey())
-
-	clientConfig := &ssh.ClientConfig{
-		User: user,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: trustedHostKeyCallback(conf.SSHHostKey),
-	}
-
-	client, err := ssh.Dial("tcp", server, clientConfig)
-
-	if err != nil {
-		log.Println("Failed to dial: " + err.Error())
-		return nil, err
-	}
-
-	return client, nil
 }
 
 // Will keep trying forever
 func getSSHSession() *ssh.Session {
+	waitForSSHClient()
+
 	// try to get new session
 	session, err := sshClient.NewSession()
 
 	if err != nil {
 		log.Println("Failed to create session: " + err.Error())
-
-		waitForSSHClient()
 	}
 
 	return session
+}
+
+func testSSH() {
+	for {
+		session := getSSHSession()
+		defer session.Close()
+
+		log.Println("Running `whoami` on server")
+
+		result, err := remoteRun("whoami", session)
+
+		log.Println("Result: " + result)
+
+		if err != nil {
+			log.Println("Error: " + err.Error())
+		}
+
+		log.Println("Sleeping for 2s")
+		time.Sleep(2 * time.Second)
+	}
 }
 
 // e.g. output, err := remoteRun("whoami", session)

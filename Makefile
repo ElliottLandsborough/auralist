@@ -20,6 +20,9 @@ tag:
 sync:
 	go run *.go syncFiles
 
+testssh:
+	go run *.go testssh
+
 deps:
 	go get ./...
 

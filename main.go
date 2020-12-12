@@ -25,6 +25,8 @@ func main() {
 			syncFiles()
 		case "listen":
 			server()
+		case "testssh":
+			testSSH()
 		default:
 			fmt.Printf("Please choose a command.\n")
 		}
